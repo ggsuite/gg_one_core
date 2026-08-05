@@ -1,0 +1,48 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What This Is
+
+`gg_one_core` is the foundation of the gg_one tool family. It bundles three concerns that every other package of the family builds on:
+
+- **State kernel** (`lib/src/tools/`): `GgState` (hash-keyed check caching in `.gg/gg.json`), the `CommandCluster` base of all `can_*` commands, the `DidCommand` base of all `did_*` commands, `Suggestion`, and the pubspec-overrides backup helpers.
+- **Checks** (`lib/src/commands/check/`, `tools/analyzer.dart`, `tools/formatter.dart`, `tools/checks.dart`): the individual verification steps and the `Checks` container that `can commit` / `can push` run through.
+- **Publish configuration** (`tools/publish_config.dart`, `tools/version_selector.dart`, `tools/terminal_guard.dart`, `tools/ensure_publish_config_ignored.dart`, `commands/do/do_configure_publish.dart`): everything around `.gg/gg-publish.json`. The publish flow that consumes the config lives in `gg_one_do_publish` — its CLAUDE.md documents the end-to-end semantics.
+
+The checks layer does not depend on the state kernel (no `GgState`, no `CommandCluster`) — that separation is intentional and worth keeping. All commands extend `DirCommand<T>` from `gg_args`; the primary logic lives in `get()`, and `exec()` delegates to it. `ggLog` is constructor-injected everywhere for testability.
+
+## Behavior notes
+
+### Checks
+
+- **`check/`** — **no CLI group any more.** These are the individual verification steps `can commit` / `can push` run through the `Checks` container (`tools/checks.dart`); they were also exposed as `gg one check <name>`, which only duplicated what `can commit` does anyway. The `Check` group command is gone, the classes stay: `analyze`, `format`, `pana`, `package_json_scripts` (TypeScript npm scripts), `npm_logged_in` (npm auth before publish), `no_pubspec_overrides` (a `pubspec_overrides.yaml` must not redirect a dependency to a local **path** when publishing — part of `can publish`; `do publish` saves the file to the git-ignored `.gg/pubspec_overrides_backup.yaml` and deletes it up front — `tools/pubspec_overrides_backup.dart`, whose `backupPubspecOverrides`/`restorePubspecOverrides` also cover `pnpm-workspace.yaml` (backup at `.gg/pnpm_workspace_backup.yaml`) — pnpm-managed TypeScript repos carry their `link:` overrides there — and whose restore the multi-repo flow calls after the merge so the workspace wiring survives the publish). A `git:` override does _not_ fail the check: older gg versions pinned every repo of a ticket to its feature branch that way (today's `gg do review` leaves the refs alone), and such a ref resolves for everybody, unlike a path. Both the check and its static `NoPubspecOverrides.hasLocalizedRefs(dir)` ask the same question »does this package still redirect a dependency to a working copy?« — a missing, empty, overrides-free file and one holding only git refs or version constraints all count as _not_ localized, an unparsable one as localized. `--merge-only` (below) — in gg_one and in gg_multi — uses it as its precondition
+
+### State caching and command bases
+
+### State caching (`GgState`)
+
+`lib/src/tools/gg_state.dart` manages the `.gg/gg.json` file. Each successful check stores a hash of the working-tree state so subsequent runs can skip re-running checks when nothing has changed. When only `.gg/gg.json` changed, it is auto-amended into the last commit (or committed as a new commit if already pushed).
+
+### `CommandCluster`
+
+Used for commands that aggregate multiple sub-checks. For example, `CanCommit` (in `can/`) runs `analyze`, `format`, and `tests` as a cluster, short-circuiting on the first failure.
+
+### Publish configuration
+
+### Publish flow (`do_publish` + `do_configure_publish`)
+
+A `--merge-only` run asks for **no version increment** at all: it releases nothing, so `do configure-publish` skips the prompt (its own `--merge-only` flag does the same) and writes no `version_increment`; `PublishConfig.resolveSingle`/`forRepo` accept a missing one via `requireVersionIncrement: false`.
+
+`do publish` resolves all interactive input **up front** — version increment, merge message AND the delete-feature-branch decision (`delete_feature_branch` in the config; `configure-publish` asks it, `--[no-]delete-feature-branch` presets it, and the resolved value is persisted in the runtime file so a resume never re-asks): explicit parameters (the gg_multi flow) / CLI flags > `--config <path>` > an existing `<repo>/.gg/gg-publish.json` > an automatic interactive `do configure-publish` (which writes that file; `-m` presets the merge message and skips its prompt). No prompt ever sits between the irreversible publish steps. Every default prompt is guarded by `throwWhenNotATerminal` (`tools/terminal_guard.dart`): without a TTY it fails fast with an actionable message instead of hanging (CI, pipes). While the publish runs, per-step progress is recorded in the same `.gg/gg-publish.json` (`done_steps`: `prepare_version`, `publish_registry`, `merge`, `tag` — the three pushes and the feature-branch deletion are idempotent and always re-run; the deletion looks the remote ref up via `git ls-remote --heads origin <branch>` first and silently skips a branch that is already gone — e.g. deleted by the provider on a pull-request merge). After the `publish_registry` step, `do publish` waits until the version is actually **visible** on pub.dev/npm (gg_publish's `WaitUntilPublished`): it announces the wait including a status URL, logs progress and fails with a bounded timeout instead of hanging; the wait is idempotent (returns immediately once visible) and therefore always re-runs on resume. The file also records the feature `branch`, because a resumed run may find HEAD on the default branch already — but the persisted branch is only trusted **when resuming**; a leftover config-only file (a run that failed in `can publish`) must never pin a stale branch that a later publish would then delete. On full success the file is deleted.
+
+Resume semantics: a leftover file with `done_steps` makes a plain `do publish` **refuse** (resume with `--continue`, discard with `--restart`) — unless the recorded `branch` is a _different feature branch_ than HEAD's: then the progress is a stale leftover of another publish that arrived with a copy of the repository (the file is gitignored, so copying a workspace carries it along) and is **discarded automatically** with a warning (a `--continue` refuses instead, with the same explanation), because trusting it would skip the current publish's version bump and registry upload and could delete the wrong feature branch; a mismatch while HEAD is on the default branch is _not_ stale — a resumed run whose merge already happened legitimately sits there; `--continue` (or the programmatic `resume: true` that `gg_multi do publish --continue` forwards) skips the done steps and skips `can publish` (the checks would fail on a half-published repo) — but it runs the hash-keyed `did commit` check, which survives gg's own bookkeeping commits and fails exactly when raw commits were added after the failure, so nothing unvalidated is ever published on a resume. When the merge step is already done, the default branch is checked out **before the first push**, so push/tag target the release commit and no push resurrects the possibly already-deleted remote feature branch. `do configure-publish` refuses to overwrite a file that carries `done_steps` (that would silently discard the resume state). `EnsurePublishConfigIgnored` (in `tools/`) guarantees the publish runtime files — `.gg/gg-publish.json` and the `pubspec_overrides.yaml` backup at `.gg/pubspec_overrides_backup.yaml` — are gitignored before they are first written (appending + committing the `.gitignore` change with a `GgState.updateHash` transplant so recorded check results stay valid). Two GgState keys are written after the merge: `doCommit` (so a later `gg did commit` — CI, or a repo's own hook — accepts the release commit) and `didPublish` (read back by `gg did publish`; **not** written in merge-only mode, which releases nothing — and the multi-repo flow records it again on the feature branch once the workspace wiring is restored). The former `doPublish`/`doMerge` keys are gone — the _step_ resume relies solely on `done_steps` in the git-ignored `.gg/gg-publish.json`, and `GgState` prunes the legacy keys (`doPrepareVersion`, `doPublishPubDev`, `doMerge`, `doPublishGit`, `doPublish`) from the tracked `.gg/gg.json` whenever it writes a state. The main-branch push goes through `DoPush.get` (not raw `gitPush`), which records the `doPush` state on the release commit before pushing — otherwise `gg did push` fails on every CI checkout of a freshly published package. The final tag push stays a raw `gitPush(pushTags: true)`, because `DoPush.get` neither pushes tags nor pushes at all once everything is up to date.
+
+All commands extend `DirCommand<T>` from `gg_args`. The primary logic lives in `get()`, and `exec()` simply delegates to it. `ggLog` (a `GgLog` function alias) is constructor-injected everywhere for testability and output capture.
+
+## Testing Conventions
+
+- 100% code coverage is required. Exempt lines with `// coverage:ignore-line` or `// coverage:ignore-start` / `// coverage:ignore-end`.
+- Each implementation file must have a corresponding `_test.dart` in the mirrored path under `test/`.
+- Mock classes are defined at the bottom of the **same file** as the class they mock, using `mocktail` and extending `MockDirCommand<T>`.
+- Tests use `gg_git_test_helpers` (including the cached repo helpers) and `gg_capture_print`.

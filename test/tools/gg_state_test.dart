@@ -57,6 +57,16 @@ void main() {
   });
 
   // ...........................................................................
+  Future<String> headMessage(Directory dir) async {
+    final result = await Process.run('git', [
+      'log',
+      '-1',
+      '--format=%s',
+    ], workingDirectory: dir.path);
+    return (result.stdout as String).trim();
+  }
+
+  // ...........................................................................
   group('CheckState', () {
     group('writeSuccess(directory, success)', () {
       group('with success == true', () {
@@ -166,7 +176,47 @@ void main() {
       });
 
       group('should ammend changes to .gg/gg.json to the last commit', () {
-        test('when previous changes were not already pushed', () async {
+        test('when it is a not yet pushed »#gg« bookkeeping commit', () async {
+          // Let's create an inital commit
+          await addAndCommitSampleFile(dLocal, fileName: 'file1.txt');
+
+          // The first state write creates the bookkeeping commit.
+          await ggState.writeSuccess(directory: dLocal, key: 'isCommitted');
+          final commitCount0 = await commitCount.get(
+            directory: dLocal,
+            ggLog: ggLog,
+          );
+          expect(commitCount0, 4);
+          expect(
+            await headMessage(dLocal),
+            '#gg: Add .gg/gg.json check results',
+          );
+
+          // A second state write folds into that commit instead of
+          // stacking bookkeeping commits up.
+          await ggState.writeSuccess(directory: dLocal, key: 'isPushed');
+          expect(
+            await commitCount.get(directory: dLocal, ggLog: ggLog),
+            commitCount0,
+          );
+          expect(
+            await headMessage(dLocal),
+            '#gg: Add .gg/gg.json check results',
+          );
+          expect(
+            await modifiedFiles.get(
+              directory: dLocal,
+              ggLog: ggLog,
+              force: true,
+            ),
+            ['.gg/gg.json'],
+          );
+        });
+      });
+
+      group('should create a new »#gg« commit', () {
+        test('when the head commit is a user commit '
+            'that was not pushed', () async {
           // Let's create an inital commit
           await addAndCommitSampleFile(dLocal, fileName: 'file1.txt');
 
@@ -190,24 +240,70 @@ void main() {
           // Run the command a first time
           await ggState.writeSuccess(directory: dLocal, key: 'isCommitted');
 
-          // Because we have not pushed the changes yet,
-          // changes to gg.json should be ammended to the last commit
+          // The user's commit must not be rewritten silently — the state
+          // lands in a separate »#gg:« bookkeeping commit.
 
-          // - i.e. commit count has not changed
-          final commitCount0 = await commitCount.get(
-            directory: dLocal,
-            ggLog: ggLog,
+          // - i.e. commit count has changed
+          expect(
+            await commitCount.get(directory: dLocal, ggLog: ggLog),
+            initialCommitCount + 1,
           );
-          expect(commitCount0, 3);
 
-          // - i.e. file1.txt should be shown as modified in the last commit
+          // - i.e. the head commit carries only .gg/gg.json …
           expect(
             await modifiedFiles.get(
               directory: dLocal,
               ggLog: ggLog,
               force: true,
             ),
-            ['.gg/gg.json', 'file1.txt'],
+            ['.gg/gg.json'],
+          );
+
+          // … under gg's own message, while the user commit stays intact.
+          expect(
+            await headMessage(dLocal),
+            '#gg: Add .gg/gg.json check results',
+          );
+        });
+      });
+
+      group('should heal an ignored .gg/gg.json', () {
+        test('by rewriting .gitignore and committing the state into '
+            'the fix commit', () async {
+          // A consumer repository that git-ignored the whole .gg folder.
+          final gitignore = File(join(dLocal.path, '.gitignore'));
+          gitignore.writeAsStringSync('.gg/\n');
+          await commitFile(dLocal, '.gitignore');
+          final countBefore = await commitCount.get(
+            directory: dLocal,
+            ggLog: ggLog,
+          );
+
+          await ggState.writeSuccess(directory: dLocal, key: 'isCommitted');
+
+          // .gitignore now carries the canonical rules …
+          expect(gitignore.readAsStringSync(), '.gg/*\n!.gg/gg.json\n');
+
+          // … the fix and the state landed in one »#gg« commit …
+          expect(
+            await commitCount.get(directory: dLocal, ggLog: ggLog),
+            countBefore + 1,
+          );
+          expect(await headMessage(dLocal), '#gg: Stop ignoring .gg/gg.json');
+
+          // … nothing is left dangling and the recorded state is valid.
+          final status = await Process.run('git', [
+            'status',
+            '--porcelain',
+          ], workingDirectory: dLocal.path);
+          expect((status.stdout as String).trim(), isEmpty);
+          expect(
+            await ggState.readSuccess(
+              directory: dLocal,
+              ggLog: ggLog,
+              key: 'isCommitted',
+            ),
+            isTrue,
           );
         });
       });

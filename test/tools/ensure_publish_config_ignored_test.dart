@@ -142,6 +142,44 @@ void main() {
       expect(await gitStatus(), contains('.gitignore'));
     });
 
+    test('heals a repository whose .gitignore ignores the whole '
+        '.gg folder', () async {
+      // The state this bootstrap used to crash on: a directory-wide
+      // ».gg/« rule plus a state file written by an earlier check run.
+      final gitignore = File(join(d.path, '.gitignore'));
+      gitignore.writeAsStringSync('.gg/\n');
+      await commitFile(d, '.gitignore');
+      File(join(d.path, '.gg', 'gg.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{}');
+
+      final ensure = EnsurePublishConfigIgnored(ggLog: ggLog);
+      final changed = await ensure.ensure(directory: d);
+
+      expect(changed, isTrue);
+      expect(
+        gitignore.readAsStringSync(),
+        '.gg/*\n'
+        '!.gg/gg.json\n'
+        '.gg/gg-publish.json\n'
+        '.gg/pubspec_overrides_backup.yaml\n'
+        '.gg/pnpm_workspace_backup.yaml\n',
+      );
+
+      // Two commits: the heal, then the entries bootstrap — and the
+      // working tree is clean afterwards.
+      final log = await Process.run('git', [
+        'log',
+        '-2',
+        '--format=%s',
+      ], workingDirectory: d.path);
+      expect((log.stdout as String).trim().split('\n'), [
+        '#gg: Ignore the publish runtime files of gg',
+        '#gg: Stop ignoring .gg/gg.json',
+      ]);
+      expect(await gitStatus(), isEmpty);
+    });
+
     test('transplants recorded check hashes onto the new content', () async {
       // Record a check success for the current content …
       final state = GgState(ggLog: ggLog);
@@ -180,6 +218,15 @@ void main() {
             directory: any(named: 'directory'),
           ),
         ).thenAnswer((_) async {});
+
+        // The gg.json guard runs first — report the state file as visible.
+        when(
+          () => processWrapper.run(
+            'git',
+            any(that: contains('check-ignore')),
+            workingDirectory: any(named: 'workingDirectory'),
+          ),
+        ).thenAnswer((_) async => ProcessResult(0, 1, '', ''));
       });
 
       test('when git add fails', () async {

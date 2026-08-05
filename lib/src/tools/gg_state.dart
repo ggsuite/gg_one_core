@@ -15,6 +15,7 @@ import 'package:gg_lang/gg_lang.dart' as gg_lang;
 import 'package:gg_log/gg_log.dart';
 import 'package:path/path.dart';
 
+import 'ensure_gg_json_not_ignored.dart';
 import 'pubspec_overrides_backup.dart';
 
 /// Stores and retrieves the state of the check commands
@@ -30,13 +31,17 @@ class GgState {
     HeadMessage? headMessage,
     HasRemote? hasRemote,
     CommitCount? commitCount,
+    EnsureGgJsonNotIgnored? ggJsonGuard,
   }) : _lastChangesHash = lastChangesHash ?? LastChangesHash(ggLog: ggLog),
        _isPushed = isPushed ?? IsPushed(ggLog: ggLog),
        _modifiedFiles = modifiedFiles ?? ModifiedFiles(ggLog: ggLog),
        _commit = commit ?? Commit(ggLog: ggLog),
        _headMessage = headMessage ?? HeadMessage(ggLog: ggLog),
        _hasRemote = hasRemote ?? HasRemote(ggLog: ggLog),
-       _commitCount = commitCount ?? CommitCount(ggLog: ggLog);
+       _commitCount = commitCount ?? CommitCount(ggLog: ggLog) {
+    _ggJsonGuard =
+        ggJsonGuard ?? EnsureGgJsonNotIgnored(ggLog: ggLog, state: this);
+  }
 
   // ...........................................................................
   /// The logger used for logging
@@ -231,6 +236,7 @@ class GgState {
   final HeadMessage _headMessage;
   final HasRemote _hasRemote;
   final CommitCount _commitCount;
+  late final EnsureGgJsonNotIgnored _ggJsonGuard;
 
   // ...........................................................................
   /// Directories already pruned in this process. writeSuccess runs on every
@@ -302,6 +308,11 @@ class GgState {
 
   // ...........................................................................
   Future<void> _commitOrAmmendStateChanges(Directory directory) async {
+    // The state written above must be committable: heal or reject ignore
+    // rules excluding .gg/gg.json before looking at the modified files —
+    // an ignored state file never shows up there.
+    await _ggJsonGuard.ensure(directory: directory);
+
     // Check if only .gg/gg.json is currently changed
     final modifiedFiles = await _modifiedFiles.get(
       directory: directory,
@@ -342,24 +353,24 @@ class GgState {
     final everythingWasPushed = hasRemote && await _wasPushed(directory);
 
     // ...........................
-    // To have a clean git history,
-    // we will ammend changes to .gg/gg.json to the last commit.
-    // - If everything was committed and pushed, create a new commit
-    // - If everything was committed but not pushed, ammend to last commit
-    final message = everythingWasPushed
-        ? '#gg: Add .gg/gg.json check results'
-        : await _headMessage.get(
-            directory: directory,
-            ggLog: ggLog,
-            throwIfNotEverythingIsCommitted: false,
-          );
+    // To keep a clean git history, changes to .gg/gg.json are folded into
+    // the last commit — but only when that commit is gg's own bookkeeping
+    // (its message starts with »#gg«) and was not pushed yet. User commits
+    // are never amended silently; they get a separate »#gg:« commit that
+    // later state updates keep folding into.
+    final headMessage = await _headMessage.get(
+      directory: directory,
+      ggLog: ggLog,
+      throwIfNotEverythingIsCommitted: false,
+    );
+    final ammend = !everythingWasPushed && headMessage.startsWith('#gg');
 
     await _commit.commit(
       directory: directory,
       ggLog: ggLog,
       doStage: true,
-      message: message,
-      ammend: !everythingWasPushed,
+      message: ammend ? headMessage : '#gg: Add .gg/gg.json check results',
+      ammend: ammend,
     );
   }
 

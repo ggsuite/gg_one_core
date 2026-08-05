@@ -4,7 +4,6 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
-import 'package:gg_one_core/gg_one_core.dart';
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
@@ -12,6 +11,10 @@ import 'package:gg_log/gg_log.dart';
 import 'package:gg_process/gg_process.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
+
+import 'ensure_gg_json_not_ignored.dart';
+import 'gg_state.dart';
+import 'pubspec_overrides_backup.dart';
 
 /// Makes sure the files a publish writes beside the release are listed in a
 /// repository's `.gitignore`: the runtime publish file `.gg/gg-publish.json`
@@ -23,20 +26,34 @@ import 'package:path/path.dart';
 /// and — in the standalone gg_one flow — commits the `.gitignore` change
 /// right away, transplanting the recorded check hashes via
 /// [GgState.updateHash] so analyze/test results stay valid.
+///
+/// Before touching anything, [EnsureGgJsonNotIgnored] heals or rejects
+/// ignore rules that exclude the tracked state file — so the bootstrap
+/// commit below can always add `.gg/gg.json`.
 class EnsurePublishConfigIgnored {
   /// Constructor.
   EnsurePublishConfigIgnored({
     required this.ggLog,
     GgState? state,
+    EnsureGgJsonNotIgnored? ggJsonGuard,
     GgProcessWrapper processWrapper = const GgProcessWrapper(),
   }) : _state = state ?? GgState(ggLog: ggLog),
-       _processWrapper = processWrapper;
+       _processWrapper = processWrapper {
+    _ggJsonGuard =
+        ggJsonGuard ??
+        EnsureGgJsonNotIgnored(
+          ggLog: ggLog,
+          state: _state,
+          processWrapper: processWrapper,
+        );
+  }
 
   /// The logger used for logging.
   final GgLog ggLog;
 
   final GgState _state;
   final GgProcessWrapper _processWrapper;
+  late final EnsureGgJsonNotIgnored _ggJsonGuard;
 
   /// The `.gitignore` entry that hides the runtime publish file from git.
   static const String entry = '.gg/gg-publish.json';
@@ -60,6 +77,10 @@ class EnsurePublishConfigIgnored {
     required Directory directory,
     bool commit = true,
   }) async {
+    // .gg/gg.json joins the bootstrap commit below — heal or reject ignore
+    // rules that would make »git add« refuse the explicitly named path.
+    await _ggJsonGuard.ensure(directory: directory);
+
     final gitignore = File(join(directory.path, '.gitignore'));
     final content = gitignore.existsSync() ? gitignore.readAsStringSync() : '';
     final lines = content.split('\n').map((line) => line.trim()).toSet();

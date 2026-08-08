@@ -18,6 +18,14 @@ import 'package:mocktail/mocktail.dart' as mocktail;
 /// The npm scripts every TypeScript project must declare in its package.json.
 const List<String> requiredNpmScripts = <String>['test', 'build', 'lint'];
 
+/// The npm scripts required of a project that ships no TypeScript sources —
+/// a hybrid without a `tsconfig.json`.
+///
+/// `build` and `lint` are TypeScript tooling: there is nothing to compile and
+/// nothing for eslint to read. The tests remain required, because publishing
+/// still has to run them.
+const List<String> requiredNpmScriptsWithoutTypeScript = <String>['test'];
+
 /// The publish-lifecycle script that must reach `build`. npm's modern name is
 /// `prepublishOnly`; the deprecated `prepublish` is accepted as an equivalent.
 /// Exactly one of these must be present (unless the package is private).
@@ -42,13 +50,16 @@ const String prepublishMustRunScript = 'build';
 /// gg relies on and wires them into the expected publish chain
 /// (`prepublishOnly` → `build` → `test`):
 ///
-/// * `test`, `build` and `lint` scripts must all be present.
+/// * `test`, `build` and `lint` scripts must all be present — `build` and
+///   `lint` only when the project carries a `tsconfig.json`. A hybrid without
+///   one ships no TypeScript sources, so there is nothing to compile or lint
+///   and only `test` is required.
 /// * The `build` script must run `test`, so the tests always run as part of a
 ///   build. A `prebuild` script running `test` counts too, because npm runs it
-///   right before `build`. Cross-language bridges are exempt, as their build
-///   produces the Dart and TypeScript artifacts and runs its tests separately.
-/// * `prepublishOnly` (or the deprecated `prepublish`) must be present and run
-///   `build`.
+///   right before `build`. Hybrids are exempt, as their build produces the
+///   Dart and TypeScript artifacts and runs its tests separately.
+/// * `prepublishOnly` (or the deprecated `prepublish`) must be present and
+///   reach the tests — via `build` where there is one, directly otherwise.
 ///
 /// Packages marked `"private": true` are never published and are therefore
 /// exempt from the `prepublishOnly` requirement (the `build` → `test` rule
@@ -104,15 +115,27 @@ class CheckPackageJsonScripts extends DirCommand<void> {
   void _check(Directory directory) {
     final scripts = readNpmScripts(directory);
 
-    final missing = requiredNpmScripts
+    // Only a project that actually compiles TypeScript is held to the
+    // TypeScript contract. A hybrid without a `tsconfig.json` reaches this
+    // check because it carries a package.json, but it ships no sources to
+    // build or lint. (A package.json without a pubspec.yaml and without a
+    // tsconfig.json never gets here — checkProjectType reports it as none.)
+    final compilesTypeScript = File(
+      '${directory.path}/tsconfig.json',
+    ).existsSync();
+    final required = compilesTypeScript
+        ? requiredNpmScripts
+        : requiredNpmScriptsWithoutTypeScript;
+
+    final missing = required
         .where((name) => !scripts.containsKey(name))
         .toList();
     if (missing.isNotEmpty) {
       throw Exception(
         cError(
           'package.json is missing required scripts: '
-          '${missing.join(', ')}. A TypeScript project must declare: '
-          '${requiredNpmScripts.join(', ')} and one of '
+          '${missing.join(', ')}. This project must declare: '
+          '${required.join(', ')} and one of '
           '${prepublishScriptNames.join(' / ')}.',
         ),
       );
@@ -120,11 +143,13 @@ class CheckPackageJsonScripts extends DirCommand<void> {
 
     // The `build` script must run `test`, so the tests always run as part of a
     // build — either directly or via `prebuild`, which npm executes right
-    // before `build`. Cross-language bridges are exempt: their build produces
-    // the Dart and TypeScript artifacts and runs its tests separately.
-    final buildScript = scripts['build']!;
+    // before `build`. Hybrids are exempt: their build produces the Dart and
+    // TypeScript artifacts and runs its tests separately. A project without
+    // TypeScript declares no `build` at all, so there is nothing to check.
+    final buildScript = scripts['build'];
     final preBuildScript = scripts[buildPreScript] ?? '';
-    if (!isBridgeProject(directory) &&
+    if (buildScript != null &&
+        !isHybridProject(directory) &&
         !_referencesScript(buildScript, buildMustRunScript) &&
         !_referencesScript(preBuildScript, buildMustRunScript)) {
       throw Exception(
@@ -146,22 +171,28 @@ class CheckPackageJsonScripts extends DirCommand<void> {
       scripts.containsKey,
       orElse: () => '',
     );
+    // … and it must reach the tests: via `build` when the project has one,
+    // directly otherwise. The point of the chain is that publishing never
+    // skips the test suite, not that a `build` step exists.
+    final mustRun = buildScript != null
+        ? prepublishMustRunScript
+        : buildMustRunScript;
+
     if (prepublishName.isEmpty) {
       throw Exception(
         cError(
-          'package.json is missing a publish-lifecycle script. A TypeScript '
-          'project must declare one of: ${prepublishScriptNames.join(' / ')} '
-          '(it must run $prepublishMustRunScript), or set "private": true.',
+          'package.json is missing a publish-lifecycle script. This project '
+          'must declare one of: ${prepublishScriptNames.join(' / ')} '
+          '(it must run $mustRun), or set "private": true.',
         ),
       );
     }
 
-    // … and it must run `build` (which in turn runs `test`).
     final prepublish = scripts[prepublishName]!;
-    if (!_referencesScript(prepublish, prepublishMustRunScript)) {
+    if (!_referencesScript(prepublish, mustRun)) {
       throw Exception(
         cError(
-          'The "$prepublishName" script must run $prepublishMustRunScript '
+          'The "$prepublishName" script must run $mustRun '
           '(its command is "$prepublish").',
         ),
       );

@@ -95,7 +95,13 @@ class DartAnalyzer extends Analyzer {
 ///
 /// When the project's `package.json` declares a `lint` script, that script is
 /// run (`<pm> run lint`) so each repo controls exactly what its analyze phase
-/// does. Otherwise it falls back to the catalog default (`tsc --noEmit`).
+/// does. Otherwise it falls back to the catalog default (`tsc --noEmit`) —
+/// but only for projects that actually carry a `tsconfig.json`.
+///
+/// A hybrid without one ships no TypeScript sources at all: its `package.json`
+/// exists to publish a payload to npm, not to compile anything. Falling back
+/// to `tsc` there would demand a `typescript` devDependency for a compiler
+/// that has nothing to read, so the analysis is skipped instead.
 class TypeScriptAnalyzer extends Analyzer {
   /// Constructor.
   const TypeScriptAnalyzer({
@@ -131,6 +137,15 @@ class TypeScriptAnalyzer extends Analyzer {
       cmd = pm.runCommand('lint');
       label = '${cmd.executable} ${cmd.args.join(' ')}';
       runInShell = true;
+    } else if (!File('${directory.path}/tsconfig.json').existsSync()) {
+      // No lint script and no TypeScript config — nothing for the compiler
+      // to read. See the class doc.
+      GgStatusPrinter<void>(
+        ggLog: ggLog,
+        message: 'Skipping TypeScript analysis (no lint script, no tsconfig)',
+        dark: true,
+      ).logStatus(GgStatusPrinterStatus.success);
+      return;
     } else {
       final cat = catalog ?? await LanguageCatalog.load();
       final command = cat.spec(ProjectType.typescript).command('analyze');

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.1 - 2026-08-08
+
+### Changed
+
+- A project that ships no TypeScript sources — a hybrid whose
+`package.json` exists to publish a payload to npm, with no
+`tsconfig.json` — is no longer held to the TypeScript toolchain:
+- `analyze` skips instead of falling back to `tsc --noEmit`, which
+demanded a `typescript` devDependency for a compiler with nothing to
+read.
+- `package-json-scripts` requires only `test`, not `build` and `lint`.
+- The publish-lifecycle script must reach `test` — via `build` where
+there is one, directly otherwise. The point of the chain is that
+publishing never skips the tests, not that a build step exists.
+- Support npm packages without typescript
+
 ## 2.0.0 - 2026-08-08
 
 ### Changed

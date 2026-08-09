@@ -59,6 +59,17 @@ class GgState {
   static const legacyConfigFileName = '.gg.json';
 
   // ...........................................................................
+  /// The state key meaning »the working tree at this hash was committed by
+  /// gg«.
+  ///
+  /// It is written by `gg do commit` and by every system commit that leaves
+  /// the tree clean, and read by `gg did commit` — and through it by
+  /// `gg can merge` and `gg can publish`. A writer that forgets it turns the
+  /// next gate into a spurious »Not committed yet«, so producer and consumer
+  /// share the constant instead of repeating the literal.
+  static const String doCommitKey = 'doCommit';
+
+  // ...........................................................................
   /// The file that might be ignored while reading the hash
   ///
   /// The entries are matched against the paths git reports, so the hidden

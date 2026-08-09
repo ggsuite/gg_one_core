@@ -119,7 +119,18 @@ class GgSystemCommit {
   /// fallback.
   ///
   /// [stateKey] — when set, the state is recorded via [GgState.writeSuccess]
-  /// after the commits, so check results survive (e.g. `doCommit`).
+  /// after the commits.
+  ///
+  /// Pass [GgState.doCommitKey] wherever this call replaces what
+  /// `gg do commit` used to do — a system commit that leaves the tree clean
+  /// answers »is everything committed?« with yes, and the gates downstream
+  /// (`gg can merge`, `gg can publish`) read exactly that recorded answer.
+  /// The recorded hash covers the *content* of the tree, so a bookkeeping
+  /// commit that rewrites a manifest — changed references, tightened
+  /// constraints — invalidates it and must record it anew. Leave it null when
+  /// the commit is deliberately partial ([paths] given, or
+  /// [includeUntracked] off): the tree is still dirty afterwards and the
+  /// answer would be a lie.
   Future<GgSystemCommitResult> commit({
     required Directory directory,
     required GgLog ggLog,

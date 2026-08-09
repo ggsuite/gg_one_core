@@ -450,18 +450,77 @@ void main() {
           directory: d,
           ggLog: messages.add,
           message: '#gg: Update pubspec.lock',
-          stateKey: 'doCommit',
+          stateKey: GgState.doCommitKey,
         );
 
         final state = GgState(ggLog: messages.add);
         expect(
           await state.readSuccess(
             directory: d,
-            key: 'doCommit',
+            key: GgState.doCommitKey,
             ggLog: messages.add,
           ),
           isTrue,
         );
+      });
+
+      group('when the commit rewrites a manifest', () {
+        // The recorded »everything is committed« hash covers the content of
+        // the tree, and a manifest is part of it — unlike a lock file, which
+        // GgState.ignoreFiles skips. So a bookkeeping commit that rewrites
+        // pubspec.yaml — changed references, tightened constraints —
+        // invalidates the recorded answer, and every gate reading it through
+        // »gg did commit« (can merge, can publish) reports a spurious »Not
+        // committed yet« unless the state is recorded anew.
+        setUp(() async {
+          await addAndCommitSampleFile(
+            d,
+            fileName: 'pubspec.yaml',
+            content: 'dependencies:\n  gg_git: ^4.0.0\n',
+          );
+          await GgState(
+            ggLog: messages.add,
+          ).writeSuccess(directory: d, key: GgState.doCommitKey);
+
+          await File(
+            '${d.path}/pubspec.yaml',
+          ).writeAsString('dependencies:\n  gg_git: ^4.1.0\n');
+        });
+
+        test('the recorded state goes stale without a stateKey', () async {
+          await systemCommit.commit(
+            directory: d,
+            ggLog: messages.add,
+            message: '#gg: changed references to pub.dev',
+          );
+
+          expect(
+            await GgState(ggLog: messages.add).readSuccess(
+              directory: d,
+              key: GgState.doCommitKey,
+              ggLog: messages.add,
+            ),
+            isFalse,
+          );
+        });
+
+        test('the stateKey keeps »gg did commit« answering yes', () async {
+          await systemCommit.commit(
+            directory: d,
+            ggLog: messages.add,
+            message: '#gg: changed references to pub.dev',
+            stateKey: GgState.doCommitKey,
+          );
+
+          expect(
+            await GgState(ggLog: messages.add).readSuccess(
+              directory: d,
+              key: GgState.doCommitKey,
+              ggLog: messages.add,
+            ),
+            isTrue,
+          );
+        });
       });
     });
   });

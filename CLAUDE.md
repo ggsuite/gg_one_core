@@ -16,6 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `tools/gg_system_commit.dart` (`GgSystemCommit`) is the one producer of every `#gg:` commit in the whole family. It splits the dirty tree by ownership, saves foreign changes in their own **prefix-less** commit first (message: injected builder → ticket description → `Save pending changes on <branch>`), then writes the pathspec-limited bookkeeping commit, and refuses to write anything outside a feature branch. `lib/gg_one_core_test_helpers.dart` exports the two assertions that verify both invariants against real git history.
 
+A system commit that replaces what `gg do commit` used to do must pass `stateKey: GgState.doCommitKey` — that is the one part of the contract the class cannot enforce for the caller. The recorded state hash covers the **content** of the tree, so a bookkeeping commit that rewrites a manifest (changed references, tightened constraints) invalidates it, while one that only touches lock files or `.gg/` does not (`GgState.ignoreFiles`). Forget it after a manifest rewrite and every gate reading the state through `gg did commit` — `gg can merge`, `gg can publish` — fails with a spurious »Not committed yet«. Leave it null when the commit is deliberately partial (explicit `paths`, or `includeUntracked: false`): the tree is still dirty afterwards and the recorded answer would be a lie.
+
 The checks layer does not depend on the state kernel (no `GgState`, no `CommandCluster`) — that separation is intentional and worth keeping. All commands extend `DirCommand<T>` from `gg_args`; the primary logic lives in `get()`, and `exec()` delegates to it. `ggLog` is constructor-injected everywhere for testability.
 
 ## Behavior notes

@@ -6,8 +6,7 @@
 
 import 'dart:io';
 
-import 'package:gg_git/gg_git.dart';
-
+import 'package:gg_one_core/src/tools/gg_commit_message.dart';
 import 'package:gg_one_core/src/tools/gg_owned_files.dart';
 
 /// Throws when a »#gg: « commit of [repo] touches a file gg does not own.

@@ -16,6 +16,7 @@ import 'package:gg_log/gg_log.dart';
 import 'package:path/path.dart';
 
 import 'ensure_gg_json_not_ignored.dart';
+import 'gg_commit_message.dart';
 import 'pubspec_overrides_backup.dart';
 
 /// Stores and retrieves the state of the check commands

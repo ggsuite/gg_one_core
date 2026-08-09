@@ -7,13 +7,13 @@
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
-import 'package:gg_git/gg_git.dart' show ggCommitPrefix;
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_process/gg_process.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
 
 import 'ensure_gg_json_not_ignored.dart';
+import 'gg_commit_message.dart';
 import 'gg_state.dart';
 import 'pubspec_overrides_backup.dart';
 

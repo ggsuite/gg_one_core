@@ -11,6 +11,7 @@ import 'package:gg_git/gg_git.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:mocktail/mocktail.dart' as mocktail;
 
+import 'package:gg_one_core/src/tools/gg_commit_message.dart';
 import 'package:gg_one_core/src/tools/gg_owned_files.dart';
 import 'package:gg_one_core/src/tools/gg_state.dart';
 import 'package:gg_one_core/src/tools/ticket_description.dart';

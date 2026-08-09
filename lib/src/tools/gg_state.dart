@@ -96,6 +96,10 @@ class GgState {
     'doMerge',
     'doPublishGit',
     'doPublish',
+    // »gg did publish« reads the tags now. The marker was also written when
+    // a publish *skipped* a repository, so it claimed »released« for content
+    // that could still be sitting unreleased on the default branch.
+    'didPublish',
   ];
 
   // ...........................................................................

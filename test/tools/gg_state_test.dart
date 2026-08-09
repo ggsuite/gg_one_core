@@ -41,6 +41,10 @@ void main() {
         await initGit(repo);
         await addPubspecFileWithoutCommitting(repo, version: '1.0.0');
         await commitPubspecFile(repo);
+
+        // State commits only happen on feature branches — main receives
+        // release merges and tags exclusively.
+        await createBranch(repo, 'feature');
       },
     );
     await initCachedRepo(dRemote, key: 'gg_state_remote', build: initRemoteGit);
@@ -400,7 +404,12 @@ void main() {
           );
 
           // Push the changes
-          await Process.run('git', ['push'], workingDirectory: dLocal.path);
+          await Process.run('git', [
+            'push',
+            '-u',
+            'origin',
+            'feature',
+          ], workingDirectory: dLocal.path);
 
           // Run the command a first time
           await ggState.writeSuccess(directory: dLocal, key: 'isCommitted');
@@ -434,6 +443,38 @@ void main() {
             ggLog: ggLog,
           );
           expect(commitCount1, initialCommitCount + 1);
+        });
+      });
+
+      group('should not commit on the default branch', () {
+        test('the state is written but no commit is created', () async {
+          // The default branch receives release merges and tags only, never
+          // gg bookkeeping commits. The state file is still written so the
+          // recorded results are available to this run.
+          await Process.run('git', [
+            'checkout',
+            'main',
+          ], workingDirectory: dLocal.path);
+
+          final count0 = await commitCount.get(directory: dLocal, ggLog: ggLog);
+
+          await ggState.writeSuccess(directory: dLocal, key: 'isCommitted');
+
+          // The success is recorded ...
+          expect(
+            await ggState.readSuccess(
+              directory: dLocal,
+              key: 'isCommitted',
+              ggLog: ggLog,
+            ),
+            isTrue,
+          );
+
+          // ... but no commit was created.
+          expect(
+            await commitCount.get(directory: dLocal, ggLog: ggLog),
+            count0,
+          );
         });
       });
 

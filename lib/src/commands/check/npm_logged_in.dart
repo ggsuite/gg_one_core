@@ -37,6 +37,17 @@ import 'package:mocktail/mocktail.dart' as mocktail;
 /// `whoami` (common for private feeds) and the check skips instead of
 /// false-failing — the auth is verified for real at publish time.
 ///
+/// It runs in the package's own directory, and the failure names that
+/// directory, because the package manager is resolved per directory: a
+/// `packageManager` field in `package.json` makes corepack serve that exact
+/// version instead of the globally installed one, and the major versions do
+/// not share a credential store (pnpm 11 keeps its own auth file and prefers
+/// it over `~/.npmrc`). A `<pm> login` run from somewhere else can therefore
+/// succeed while this package stays unauthenticated — which is what the
+/// message has to steer the user away from. It closes with
+/// `corepack prepare <pm>@latest --activate`, which lifts the globally
+/// installed version onto the pinned one so the two stores stop diverging.
+///
 /// The check applies to every package that publishes to npm — including a
 /// hybrid, whose `pubspec.yaml` does not exempt it from needing npm
 /// credentials. Packages that publish nowhere or to pub.dev only are skipped.
@@ -124,8 +135,14 @@ class NpmLoggedIn extends DirCommand<void> {
         cError(
           'Not logged in to $registryLabel '
           '(${pm.executable} whoami failed: $detail). '
-          'Run "${pm.executable} login$loginRegistry" or set a valid token in '
-          '~/.npmrc before publishing.',
+          'Run "${pm.executable} login$loginRegistry" in ${directory.path} — '
+          'there and not somewhere else: a "packageManager" field in '
+          'package.json makes corepack serve a different ${pm.executable} '
+          'version per directory, and the major versions do not share a '
+          'credential store. If the login does not take effect, run '
+          '"corepack prepare ${pm.executable}@latest --activate" to bring the '
+          'global ${pm.executable} to the same major version, then log in '
+          'again.',
         ),
       );
     }

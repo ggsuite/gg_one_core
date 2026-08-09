@@ -312,6 +312,13 @@ void main() {
                   contains('Not logged in to https://registry.npmjs.org/'),
                   contains('401 Unauthorized'),
                   contains('pnpm login --registry=https://registry.npmjs.org/'),
+                  // The package directory decides which pnpm corepack serves,
+                  // and every major version has its own credential store — a
+                  // login run elsewhere does not reach this package.
+                  contains('in ${d.path}'),
+                  // …and when it still does not, the two versions have to be
+                  // brought together instead.
+                  contains('corepack prepare pnpm@latest --activate'),
                 ),
               ),
             ),

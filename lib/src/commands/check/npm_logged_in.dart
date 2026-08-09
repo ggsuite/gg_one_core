@@ -4,7 +4,6 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:gg_args/gg_args.dart';
@@ -15,7 +14,6 @@ import 'package:gg_process/gg_process.dart';
 import 'package:gg_publish/gg_publish.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
 import 'package:mocktail/mocktail.dart' as mocktail;
-import 'package:path/path.dart' as p;
 
 // #############################################################################
 
@@ -30,11 +28,8 @@ import 'package:path/path.dart' as p;
 ///
 /// The check resolves the package's *actual* publish registry — rather than
 /// assuming npmjs.org — so it also works for Azure DevOps, GitHub Packages and
-/// other private registries. Resolution order:
-/// 1. `publishConfig.registry` in `package.json`,
-/// 2. the package scope's registry (`@scope:registry`) from the merged
-///    `.npmrc`,
-/// 3. the default `registry` from the merged `.npmrc`.
+/// other private registries. The resolution lives in gg_lang's
+/// [NpmRegistryResolver], which the publish flow uses as well.
 ///
 /// `whoami` is then run against that registry. A failure is only treated as a
 /// hard error when the output clearly indicates an authentication problem
@@ -42,16 +37,31 @@ import 'package:path/path.dart' as p;
 /// `whoami` (common for private feeds) and the check skips instead of
 /// false-failing — the auth is verified for real at publish time.
 ///
-/// The check only applies to packages whose publish target is `npm` (see
-/// [PublishTo]). Dart/Flutter (`pub.dev`) and private (`none`) packages are
-/// skipped.
+/// It runs in the package's own directory, and the failure names that
+/// directory, because the package manager is resolved per directory: a
+/// `packageManager` field in `package.json` makes corepack serve that exact
+/// version instead of the globally installed one, and the major versions do
+/// not share a credential store (pnpm 11 keeps its own auth file and prefers
+/// it over `~/.npmrc`). A `<pm> login` run from somewhere else can therefore
+/// succeed while this package stays unauthenticated — which is what the
+/// message has to steer the user away from. It closes with
+/// `corepack prepare <pm>@latest --activate`, which lifts the globally
+/// installed version onto the pinned one so the two stores stop diverging.
+///
+/// The check applies to every package that publishes to npm — including a
+/// hybrid, whose `pubspec.yaml` does not exempt it from needing npm
+/// credentials. Packages that publish nowhere or to pub.dev only are skipped.
 class NpmLoggedIn extends DirCommand<void> {
   /// Constructor.
   NpmLoggedIn({
     required super.ggLog,
     this.processWrapper = const GgProcessWrapper(),
     PublishTo? publishTo,
+    NpmRegistryResolver? registryResolver,
   }) : _publishTo = publishTo ?? PublishTo(ggLog: ggLog),
+       _registryResolver =
+           registryResolver ??
+           NpmRegistryResolver(processWrapper: processWrapper),
        super(
          name: 'npm-logged-in',
          description:
@@ -69,20 +79,23 @@ class NpmLoggedIn extends DirCommand<void> {
   Future<void> get({required Directory directory, required GgLog ggLog}) async {
     await check(directory: directory);
 
-    // Only npm-published packages need npm authentication. `pub.dev` (Dart)
-    // and `none` (private) targets are unaffected.
-    final target = await _publishTo.fromDirectory(directory);
-    if (target != 'npm') {
+    // Only npm-published packages need npm authentication. pub.dev-only and
+    // private packages are unaffected.
+    final targets = await _publishTo.targets(directory);
+    if (!targets.contains(PublishTarget.npm)) {
       GgStatusPrinter<void>(
         ggLog: ggLog,
-        message: 'Skipping npm auth check ($target target)',
+        message: 'Skipping npm auth check (${targets.label} target)',
         dark: true,
       ).logStatus(GgStatusPrinterStatus.success);
       return;
     }
 
     final pm = detectTypeScriptPackageManager(directory);
-    final registry = await _resolveRegistry(directory: directory, pm: pm);
+    final registry = await _registryResolver.registryOf(
+      directory: directory,
+      packageManager: pm,
+    );
     final registryLabel = registry ?? 'the npm registry';
 
     final statusPrinter = GgStatusPrinter<void>(
@@ -122,8 +135,14 @@ class NpmLoggedIn extends DirCommand<void> {
         cError(
           'Not logged in to $registryLabel '
           '(${pm.executable} whoami failed: $detail). '
-          'Run "${pm.executable} login$loginRegistry" or set a valid token in '
-          '~/.npmrc before publishing.',
+          'Run "${pm.executable} login$loginRegistry" in ${directory.path} — '
+          'there and not somewhere else: a "packageManager" field in '
+          'package.json makes corepack serve a different ${pm.executable} '
+          'version per directory, and the major versions do not share a '
+          'credential store. If the login does not take effect, run '
+          '"corepack prepare ${pm.executable}@latest --activate" to bring the '
+          'global ${pm.executable} to the same major version, then log in '
+          'again.',
         ),
       );
     }
@@ -145,80 +164,7 @@ class NpmLoggedIn extends DirCommand<void> {
   // ######################
 
   final PublishTo _publishTo;
-
-  // ...........................................................................
-  /// Resolves the registry the package publishes to, mirroring how npm/pnpm
-  /// pick it: `publishConfig.registry` → the scope's `@scope:registry` →
-  /// the default `registry`. Returns null when none is configured (the package
-  /// manager then uses its built-in default).
-  Future<String?> _resolveRegistry({
-    required Directory directory,
-    required TypeScriptPackageManager pm,
-  }) async {
-    final pkg = _readPackageJson(directory);
-
-    final publishConfig = pkg?['publishConfig'];
-    if (publishConfig is Map) {
-      final registry = publishConfig['registry'];
-      if (registry is String && registry.isNotEmpty) {
-        return registry;
-      }
-    }
-
-    final name = pkg?['name'];
-    if (name is String && name.startsWith('@') && name.contains('/')) {
-      final scope = name.substring(0, name.indexOf('/'));
-      final scoped = await _npmConfig(
-        directory: directory,
-        pm: pm,
-        key: '$scope:registry',
-      );
-      if (scoped != null) {
-        return scoped;
-      }
-    }
-
-    return _npmConfig(directory: directory, pm: pm, key: 'registry');
-  }
-
-  // ...........................................................................
-  /// Reads and parses `package.json`, or null when absent/unparseable.
-  Map<String, dynamic>? _readPackageJson(Directory directory) {
-    final file = File(p.join(directory.path, 'package.json'));
-    if (!file.existsSync()) {
-      return null;
-    }
-    try {
-      final decoded = jsonDecode(file.readAsStringSync());
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ...........................................................................
-  /// Reads a config value (e.g. `registry`, `@scope:registry`) from the merged
-  /// `.npmrc` via `<pm> config get <key>`. Returns null when unset.
-  Future<String?> _npmConfig({
-    required Directory directory,
-    required TypeScriptPackageManager pm,
-    required String key,
-  }) async {
-    final result = await processWrapper.run(
-      pm.executable,
-      <String>['config', 'get', key],
-      workingDirectory: directory.path,
-      runInShell: true,
-    );
-    if (result.exitCode != 0) {
-      return null;
-    }
-    final value = result.stdout.toString().trim();
-    if (value.isEmpty || value == 'undefined' || value == 'null') {
-      return null;
-    }
-    return value;
-  }
+  final NpmRegistryResolver _registryResolver;
 
   // ...........................................................................
   /// Whether [detail] clearly indicates an authentication failure (as opposed

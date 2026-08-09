@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
+import 'package:gg_lang/gg_lang.dart' show PublishTarget;
 import 'package:gg_publish/gg_publish.dart'
     show ReleaseChannel, VersionIncrement;
 import 'package:path/path.dart' as p;
@@ -33,15 +34,51 @@ const Set<String> allowedPublishStatuses = {
   'skipped',
 };
 
-/// Allowed entries of the repo-level `done_steps` progress list written into
-/// `<repo>/.gg/gg-publish.json` while `gg do publish` runs. Steps not listed
-/// here (the feature/main/tag pushes and the feature-branch deletion) are
-/// idempotent and always re-run on a `--continue`, so they are not tracked.
-const Set<String> allowedPublishSteps = {
+/// The repo-level `done_steps` entries a current run may record.
+///
+/// Steps not listed here (the feature/main/tag pushes and the feature-branch
+/// deletion) are idempotent and always re-run on a `--continue`, so they are
+/// not tracked.
+///
+/// The registry upload is tracked **per registry**: a hybrid publishes to
+/// pub.dev and npm, and a run whose pub.dev upload succeeded before npm failed
+/// must resume at npm alone.
+const Set<String> writablePublishSteps = {
   'prepare_version',
-  'publish_registry',
+  'publish_registry_pub_dev',
+  'publish_registry_npm',
   'merge',
   'tag',
+};
+
+/// The `done_steps` marker recording that the upload to [target] finished.
+String publishRegistryStep(PublishTarget target) => switch (target) {
+  PublishTarget.pubDev => 'publish_registry_pub_dev',
+  PublishTarget.npm => 'publish_registry_npm',
+};
+
+/// Step names only older gg versions wrote.
+///
+/// Accepted when *reading* a leftover file, so a `--continue` across a gg
+/// upgrade resumes instead of crashing. Never written again — see
+/// [legacyPublishRegistryStep] for how such a marker is interpreted.
+const Set<String> legacyPublishSteps = {'publish_registry'};
+
+/// The single registry step older gg versions recorded.
+///
+/// It is deliberately **not** translated into the two new markers. A hybrid
+/// could only ever have reached npm back then, so treating it as "both done"
+/// would permanently skip the pub.dev upload, while treating it as "neither
+/// done" would re-upload a version npm already has. The publish flow instead
+/// re-asks each registry whether it already carries the version — a lookup it
+/// performs anyway.
+const String legacyPublishRegistryStep = 'publish_registry';
+
+/// Every `done_steps` entry that may appear in a `.gg-publish.json` file,
+/// including the ones only older gg versions wrote.
+const Set<String> allowedPublishSteps = {
+  ...writablePublishSteps,
+  ...legacyPublishSteps,
 };
 
 /// The message shown when a leftover `.gg-publish.json` still carries the
@@ -490,11 +527,18 @@ class PublishConfig {
   /// leftover of an unfinished `gg do publish` run.
   bool get hasStepProgress => doneSteps.isNotEmpty;
 
+  /// Whether this file carries the single registry marker older gg versions
+  /// wrote. Such a run cannot say *which* registry it reached, so the publish
+  /// flow re-asks each of them instead of trusting the marker.
+  bool get hasLegacyRegistryStep =>
+      doneSteps.contains(legacyPublishRegistryStep);
+
   /// Returns a copy of this config with [step] appended to [doneSteps].
-  /// Throws [ArgumentError] for step names outside [allowedPublishSteps];
-  /// marking an already-done step is a no-op.
+  /// Throws [ArgumentError] for step names outside [writablePublishSteps] —
+  /// including the legacy names, which are readable but must never be written
+  /// again; marking an already-done step is a no-op.
   PublishConfig withStepDone(String step) {
-    if (!allowedPublishSteps.contains(step)) {
+    if (!writablePublishSteps.contains(step)) {
       throw ArgumentError.value(step, 'step', 'unknown publish step');
     }
     if (isStepDone(step)) return this;

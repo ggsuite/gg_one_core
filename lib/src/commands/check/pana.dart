@@ -57,15 +57,19 @@ class Pana extends DirCommand<void> {
       return;
     }
 
-    // Pana only applies to packages published to pub.dev. For npm (TypeScript)
-    // or `none` (private) targets there is nothing to analyze, so make the
-    // skip explicit instead of logging a misleading "Running pana".
+    // Pana only applies to packages published to pub.dev. For npm-only or
+    // `none` (private) targets there is nothing to analyze, so make the skip
+    // explicit instead of logging a misleading "Running pana".
+    //
+    // A hybrid that publishes to both registries *is* analyzed: its Dart side
+    // goes to pub.dev like any other package. That is new — before, the single
+    // publish target of a hybrid read `npm` and pana was skipped for it.
     if (publishedOnly) {
-      final target = await _publishTo.fromDirectory(directory);
-      if (target != 'pub.dev') {
+      final targets = await _publishTo.targets(directory);
+      if (!targets.contains(PublishTarget.pubDev)) {
         GgStatusPrinter<void>(
           ggLog: ggLog,
-          message: 'Skipping pana ($target target)',
+          message: 'Skipping pana (${targets.label} target)',
           dark: true,
         ).logStatus(GgStatusPrinterStatus.success);
         return;

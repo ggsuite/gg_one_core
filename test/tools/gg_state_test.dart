@@ -117,6 +117,72 @@ void main() {
           expect(contents.containsKey('doCommit'), isTrue);
         });
 
+        test(
+          'with ignoreUnstaged, survives a transient untracked file',
+          () async {
+            // The release path (MergeFlow, DoPublish) records the state of the
+            // content it is about to put on the default branch. That content is
+            // the committed tree — a build/test/publish script that drops an
+            // untracked file for a moment must not end up in the hash, or the
+            // recorded state stops being reproducible the second the file is
+            // gone and every later »gg did commit« reports »Not committed yet«.
+            await addAndCommitSampleFile(dLocal);
+            final transient = File(join(dLocal.path, 'transient.tmp'))
+              ..writeAsStringSync('written by a release script\n');
+
+            await ggState.writeSuccess(
+              directory: dLocal,
+              key: 'doCommit',
+              ignoreUnstaged: true,
+            );
+            transient.deleteSync();
+
+            expect(
+              await ggState.readSuccess(
+                directory: dLocal,
+                key: 'doCommit',
+                ggLog: messages.add,
+              ),
+              isTrue,
+            );
+
+            // Real uncommitted work is still rejected — the read side keeps
+            // hashing the full working tree.
+            File(join(dLocal.path, 'sample.txt')).writeAsStringSync('edited\n');
+            expect(
+              await ggState.readSuccess(
+                directory: dLocal,
+                key: 'doCommit',
+                ggLog: messages.add,
+              ),
+              isFalse,
+            );
+          },
+        );
+
+        test(
+          'without ignoreUnstaged, a vanishing file invalidates the state',
+          () async {
+            // The counterpart of the test above: this is the behaviour the
+            // release path had, and the reason it broke mid-publish.
+            await addAndCommitSampleFile(dLocal);
+            final transient = File(join(dLocal.path, 'transient.tmp'))
+              ..writeAsStringSync('written by a release script\n');
+
+            await ggState.writeSuccess(directory: dLocal, key: 'doCommit');
+            transient.deleteSync();
+
+            expect(
+              await ggState.readSuccess(
+                directory: dLocal,
+                key: 'doCommit',
+                ggLog: messages.add,
+              ),
+              isFalse,
+            );
+          },
+        );
+
         test('should prune only once per directory', () async {
           await addAndCommitSampleFile(dLocal);
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.1.0 - 2026-08-09
+
+### Added
+
+- `writablePublishSteps` and `publishRegistryStep(target)` — the registry
+upload is tracked **per registry** (`publish_registry_pub_dev`,
+`publish_registry_npm`), so a run whose pub.dev upload succeeded before npm
+failed resumes at npm alone.
+
+### Changed
+
+- `allowedPublishSteps` still accepts the old single `publish_registry` marker
+when *reading* a leftover file, so a `--continue` across a gg upgrade resumes
+instead of crashing, and `hasLegacyRegistryStep` reports it. It is never
+written again, and it is deliberately not translated into the two new markers:
+a hybrid could only ever have reached npm back then, so "both done" would
+permanently skip pub.dev and "neither done" would re-upload to npm. The publish
+flow re-asks each registry instead — a lookup it performs anyway.
+- `Pana` runs for a hybrid that publishes to pub.dev. Its publish target used
+to read `npm`, so pana was skipped for it entirely.
+- `NpmLoggedIn` applies to every package that publishes to npm, including a
+hybrid, and delegates the registry resolution to gg_lang's
+`NpmRegistryResolver` — the same one the publish flow uses for its status urls.
+- Allow to publish hybrid packages
+
 ## 2.0.1 - 2026-08-08
 
 ### Changed

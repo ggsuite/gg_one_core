@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.0 - 2026-08-09
+
+### Changed
+
+- Documentation: the publish flow merges into the main branch before it
+uploads to the registries, and the workspace-wiring backups
+(`pubspec_overrides.yaml` / `pnpm-workspace.yaml`) are restored by the
+publish flow itself once the feature branch is checked out again — not by
+the multi-repo flow after the merge.
+- Merge in main before publishing
+
 ## 2.1.0 - 2026-08-09
 
 ### Added

@@ -7,6 +7,7 @@
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
+import 'package:gg_git/gg_git.dart' show ggCommitPrefix;
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_process/gg_process.dart';
 import 'package:mocktail/mocktail.dart';
@@ -128,7 +129,7 @@ class EnsurePublishConfigIgnored {
     final result = await _processWrapper.run('git', [
       'commit',
       '-m',
-      '#gg: Ignore the publish runtime files of gg',
+      '${ggCommitPrefix}Ignore the publish runtime files of gg',
       '--',
       ...paths,
     ], workingDirectory: directory.path);

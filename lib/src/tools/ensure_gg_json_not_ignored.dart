@@ -7,6 +7,7 @@
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
+import 'package:gg_git/gg_git.dart' show ggCommitPrefix;
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_process/gg_process.dart';
 import 'package:mocktail/mocktail.dart';
@@ -218,7 +219,7 @@ class EnsureGgJsonNotIgnored {
     final result = await _processWrapper.run('git', [
       'commit',
       '-m',
-      '#gg: Stop ignoring $ggJsonPath',
+      '${ggCommitPrefix}Stop ignoring $ggJsonPath',
       '--',
       ...paths,
     ], workingDirectory: directory.path);

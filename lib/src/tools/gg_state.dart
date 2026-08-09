@@ -32,13 +32,15 @@ class GgState {
     HasRemote? hasRemote,
     CommitCount? commitCount,
     EnsureGgJsonNotIgnored? ggJsonGuard,
+    IsFeatureBranch? isFeatureBranch,
   }) : _lastChangesHash = lastChangesHash ?? LastChangesHash(ggLog: ggLog),
        _isPushed = isPushed ?? IsPushed(ggLog: ggLog),
        _modifiedFiles = modifiedFiles ?? ModifiedFiles(ggLog: ggLog),
        _commit = commit ?? Commit(ggLog: ggLog),
        _headMessage = headMessage ?? HeadMessage(ggLog: ggLog),
        _hasRemote = hasRemote ?? HasRemote(ggLog: ggLog),
-       _commitCount = commitCount ?? CommitCount(ggLog: ggLog) {
+       _commitCount = commitCount ?? CommitCount(ggLog: ggLog),
+       _isFeatureBranch = isFeatureBranch ?? IsFeatureBranch(ggLog: ggLog) {
     _ggJsonGuard =
         ggJsonGuard ?? EnsureGgJsonNotIgnored(ggLog: ggLog, state: this);
   }
@@ -236,6 +238,7 @@ class GgState {
   final HeadMessage _headMessage;
   final HasRemote _hasRemote;
   final CommitCount _commitCount;
+  final IsFeatureBranch _isFeatureBranch;
   late final EnsureGgJsonNotIgnored _ggJsonGuard;
 
   // ...........................................................................
@@ -308,6 +311,20 @@ class GgState {
 
   // ...........................................................................
   Future<void> _commitOrAmmendStateChanges(Directory directory) async {
+    // »#gg: Add .gg/gg.json check results« is a gg commit, and gg commits
+    // exist on feature branches only — the default branch receives release
+    // merges and tags, nothing else. The state file is still written, so the
+    // recorded results are available to this run; the release path writes
+    // them *before* the merge anyway, so the squash carries them into the
+    // default branch and nothing is lost.
+    final isFeatureBranch = await _isFeatureBranch.get(
+      directory: directory,
+      ggLog: (_) {}, // coverage:ignore-line
+    );
+    if (!isFeatureBranch) {
+      return;
+    }
+
     // The state written above must be committable: heal or reject ignore
     // rules excluding .gg/gg.json before looking at the modified files —
     // an ignored state file never shows up there.
@@ -363,14 +380,19 @@ class GgState {
       ggLog: ggLog,
       throwIfNotEverythingIsCommitted: false,
     );
-    final ammend = !everythingWasPushed && headMessage.startsWith('#gg');
+    final ammend = !everythingWasPushed && isGgGenerated(headMessage);
 
     await _commit.commit(
       directory: directory,
       ggLog: ggLog,
       doStage: true,
-      message: ammend ? headMessage : '#gg: Add .gg/gg.json check results',
+      message: ammend
+          ? headMessage
+          : '${ggCommitPrefix}Add .gg/gg.json check results',
       ammend: ammend,
+      // The gate above proved only state files changed; the pathspec makes
+      // that structural — a racing write can no longer slip anything in.
+      paths: modifiedFiles,
     );
   }
 

@@ -92,5 +92,37 @@ void main() {
       expect(capturedOptions[1], 'Minor (1.2.3 -> 1.3.0)');
       expect(capturedOptions[2], 'Major (1.2.3 -> 2.0.0)');
     });
+
+    group('preselect', () {
+      Future<int> initialIndexFor(VersionIncrement? preselect) async {
+        late int captured;
+        when(
+          () => adapter.choose(
+            message: any(named: 'message'),
+            options: any(named: 'options'),
+            initialIndex: any(named: 'initialIndex'),
+          ),
+        ).thenAnswer((invocation) async {
+          captured = invocation.namedArguments[#initialIndex] as int;
+          return 0;
+        });
+
+        await selector.selectIncrement(
+          currentVersion: Version(1, 2, 3),
+          preselect: preselect,
+        );
+        return captured;
+      }
+
+      test('starts the cursor on the recorded answer', () async {
+        expect(await initialIndexFor(VersionIncrement.patch), 0);
+        expect(await initialIndexFor(VersionIncrement.minor), 1);
+        expect(await initialIndexFor(VersionIncrement.major), 2);
+      });
+
+      test('starts at patch when nothing was recorded', () async {
+        expect(await initialIndexFor(null), 0);
+      });
+    });
   });
 }

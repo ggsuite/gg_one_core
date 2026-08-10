@@ -66,6 +66,8 @@ void main() {
       final content = File(join(d.path, '.gitignore')).readAsStringSync();
       expect(
         content,
+        '.gg/publish_config.json\n'
+        '.gg/publish_state.json\n'
         '.gg/gg-publish.json\n'
         '.gg/pubspec_overrides_backup.yaml\n'
         '.gg/pnpm_workspace_backup.yaml\n',
@@ -76,7 +78,8 @@ void main() {
       expect(
         messages,
         contains(
-          'Added .gg/gg-publish.json, .gg/pubspec_overrides_backup.yaml, '
+          'Added .gg/publish_config.json, .gg/publish_state.json, '
+          '.gg/gg-publish.json, .gg/pubspec_overrides_backup.yaml, '
           '.gg/pnpm_workspace_backup.yaml to .gitignore.',
         ),
       );
@@ -96,6 +99,8 @@ void main() {
         expect(
           gitignore.readAsStringSync(),
           'build/\n'
+          '.gg/publish_config.json\n'
+          '.gg/publish_state.json\n'
           '.gg/gg-publish.json\n'
           '.gg/pubspec_overrides_backup.yaml\n'
           '.gg/pnpm_workspace_backup.yaml\n',
@@ -116,6 +121,8 @@ void main() {
       expect(
         gitignore.readAsStringSync(),
         '.gg/gg-publish.json\n'
+        '.gg/publish_config.json\n'
+        '.gg/publish_state.json\n'
         '.gg/pubspec_overrides_backup.yaml\n'
         '.gg/pnpm_workspace_backup.yaml\n',
       );
@@ -161,6 +168,8 @@ void main() {
         gitignore.readAsStringSync(),
         '.gg/*\n'
         '!.gg/gg.json\n'
+        '.gg/publish_config.json\n'
+        '.gg/publish_state.json\n'
         '.gg/gg-publish.json\n'
         '.gg/pubspec_overrides_backup.yaml\n'
         '.gg/pnpm_workspace_backup.yaml\n',

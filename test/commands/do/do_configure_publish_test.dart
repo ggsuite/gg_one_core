@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:gg_git/gg_git_test_helpers.dart';
 import 'package:gg_one_core/gg_one_core.dart';
+import 'package:gg_publish/gg_publish.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
 import 'package:path/path.dart';
 import 'package:test/test.dart';
@@ -20,13 +21,16 @@ class _StubAdapter implements InteractAdapter {
   final List<int> _indices;
   int _call = 0;
   final List<List<String>> capturedOptions = [];
+  final List<int> capturedInitialIndices = [];
 
   @override
   Future<int> choose({
     required String message,
     required List<String> options,
+    int initialIndex = 0,
   }) async {
     capturedOptions.add(options);
+    capturedInitialIndices.add(initialIndex);
     final index = _indices[_call % _indices.length];
     _call++;
     return index;
@@ -81,10 +85,7 @@ void main() {
     confirmDeleteFeatureBranch: confirmDeleteFeatureBranch ?? (_) => false,
   );
 
-  PublishConfig reload() => PublishConfig.load(
-    configArg: DoConfigurePublish.configFileFor(d).path,
-    fallbackDir: d.path,
-  );
+  RepoPublishFiles reload() => loadRepoPublishFiles(d);
 
   group('DoConfigurePublish', () {
     test(
@@ -98,19 +99,21 @@ void main() {
           increments: [1],
         ).configure(directory: d, ggLog: ggLog);
 
-        expect(config.versionIncrement, 'minor');
-        expect(config.mergeMessage, 'Ticket desc');
+        expect(config.config.versionIncrement, VersionIncrement.minor);
+        expect(config.config.mergeMessage, 'Ticket desc');
         expect(capturedInitials, ['Ticket desc']);
 
         final reloaded = reload();
-        expect(reloaded.versionIncrement, 'minor');
-        expect(reloaded.mergeMessage, 'Ticket desc');
+        expect(reloaded.config.versionIncrement, VersionIncrement.minor);
+        expect(reloaded.config.mergeMessage, 'Ticket desc');
 
         // The runtime file was gitignored before it was written.
         final gitignore = File(join(d.path, '.gitignore')).readAsStringSync();
-        expect(gitignore, contains('.gg/gg-publish.json'));
+        expect(gitignore, contains('.gg/publish_config.json'));
+        expect(gitignore, contains('.gg/publish_state.json'));
         expect(messages, [
-          'Added .gg/gg-publish.json, .gg/pubspec_overrides_backup.yaml, '
+          'Added .gg/publish_config.json, .gg/publish_state.json, '
+              '.gg/gg-publish.json, .gg/pubspec_overrides_backup.yaml, '
               '.gg/pnpm_workspace_backup.yaml to .gitignore.',
         ]);
       },
@@ -128,8 +131,8 @@ void main() {
 
         // initLocalGit starts on the default branch.
         expect(promptedBranch, isNotEmpty);
-        expect(config.deleteFeatureBranch, isTrue);
-        expect(reload().deleteFeatureBranch, isTrue);
+        expect(config.state.deleteFeatureBranch, isTrue);
+        expect(reload().state.deleteFeatureBranch, isTrue);
       });
 
       test('a preset skips the prompt', () async {
@@ -144,7 +147,7 @@ void main() {
               deleteFeatureBranch: false,
             );
 
-        expect(config.deleteFeatureBranch, isFalse);
+        expect(config.state.deleteFeatureBranch, isFalse);
       });
 
       test('CLI --delete-feature-branch flows into the config', () async {
@@ -165,7 +168,7 @@ void main() {
           '--delete-feature-branch',
         ]);
 
-        expect(reload().deleteFeatureBranch, isTrue);
+        expect(reload().state.deleteFeatureBranch, isTrue);
       });
     });
 
@@ -181,7 +184,7 @@ void main() {
         mergeMessage: '  Preset msg  ',
       );
 
-      expect(config.mergeMessage, 'Preset msg');
+      expect(config.config.mergeMessage, 'Preset msg');
     });
 
     test('a preset increment skips the increment prompt', () async {
@@ -193,7 +196,7 @@ void main() {
         mergeMessage: 'msg',
       );
 
-      expect(config.versionIncrement, 'major');
+      expect(config.config.versionIncrement, VersionIncrement.major);
       expect(adapter.capturedOptions, isEmpty);
     });
 
@@ -206,7 +209,7 @@ void main() {
         editMessage: (_) async => '   ',
       ).configure(directory: d, ggLog: ggLog);
 
-      expect(config.mergeMessage, 'Ticket desc');
+      expect(config.config.mergeMessage, 'Ticket desc');
     });
 
     test(
@@ -216,7 +219,7 @@ void main() {
           editMessage: (_) async => '',
         ).configure(directory: d, ggLog: ggLog);
 
-        expect(config.mergeMessage, 'Publish ${basename(d.path)}');
+        expect(config.config.mergeMessage, 'Publish ${basename(d.path)}');
       },
     );
 
@@ -290,22 +293,34 @@ void main() {
       );
     });
 
-    group('configFileFor()', () {
-      test('renames the hidden runtime file of an interrupted publish', () {
+    group('file locations', () {
+      test('configFileFor/stateFileFor name the two new files', () {
+        expect(
+          DoConfigurePublish.configFileFor(d).path,
+          join(d.path, '.gg', 'publish_config.json'),
+        );
+        expect(
+          DoConfigurePublish.stateFileFor(d).path,
+          join(d.path, '.gg', 'publish_state.json'),
+        );
+      });
+
+      test('legacyPublishConfigFile renames the hidden runtime file', () {
         // A publish that stopped before the files inside .gg were unhidden
         // left its progress behind - --continue has to find it.
         final ggDir = Directory(join(d.path, '.gg'))..createSync();
         final legacy = File(join(ggDir.path, '.gg-publish.json'))
           ..writeAsStringSync('{"done_steps":["prepare_version"]}');
 
-        final file = DoConfigurePublish.configFileFor(d);
+        final file = legacyPublishConfigFile(d);
 
         expect(file.path, join(ggDir.path, 'gg-publish.json'));
         expect(file.readAsStringSync(), '{"done_steps":["prepare_version"]}');
         expect(legacy.existsSync(), isFalse);
       });
 
-      test('keeps the current runtime file when a hidden one also exists', () {
+      test('legacyPublishConfigFile keeps the unhidden file when both '
+          'exist', () {
         final ggDir = Directory(join(d.path, '.gg'))..createSync();
         File(
           join(ggDir.path, '.gg-publish.json'),
@@ -315,20 +330,18 @@ void main() {
         ).writeAsStringSync('{"merge_message":"current"}');
 
         expect(
-          DoConfigurePublish.configFileFor(d).readAsStringSync(),
+          legacyPublishConfigFile(d).readAsStringSync(),
           '{"merge_message":"current"}',
         );
       });
     });
 
     test('refuses to clobber the progress of an unfinished publish', () async {
-      final file = DoConfigurePublish.configFileFor(d)
+      final file = DoConfigurePublish.stateFileFor(d)
         ..createSync(recursive: true);
       file.writeAsStringSync('''
 {
-  "version_increment": "patch",
-  "merge_message": "m",
-  "done_steps": ["prepare_version", "publish_registry"]
+  "doneSteps": ["prepare_version", "publish_registry"]
 }
 ''');
 
@@ -344,14 +357,98 @@ void main() {
       );
       // The file is untouched — the progress survives.
       final reloaded = reload();
-      expect(reloaded.doneSteps, ['prepare_version', 'publish_registry']);
+      expect(reloaded.state.doneSteps, ['prepare_version', 'publish_registry']);
     });
+
+    test(
+      'refuses when the progress sits in a legacy gg-publish.json',
+      () async {
+        File(join(d.path, '.gg', 'gg-publish.json'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('''
+{
+  "version_increment": "patch",
+  "merge_message": "m",
+  "done_steps": ["prepare_version"]
+}
+''');
+
+        await expectLater(
+          () => makeCommand().configure(directory: d, ggLog: ggLog),
+          throwsA(
+            isA<Exception>().having(
+              (e) => rmControls(e.toString()),
+              'message',
+              contains('Unfinished publish in'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('a legacy gg-publish.json pre-selects the recorded answers', () async {
+      File(join(d.path, '.gg', 'gg-publish.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '{"version_increment":"major","merge_message":"Legacy msg"}',
+        );
+
+      final adapter = _StubAdapter([2]);
+      final config = await makeCommand(
+        adapter: adapter,
+      ).configure(directory: d, ggLog: ggLog);
+
+      // The prompt ran again — with the recorded answers pre-selected.
+      expect(adapter.capturedInitialIndices, [2]);
+      expect(capturedInitials, ['Legacy msg']);
+      expect(config.config.versionIncrement, VersionIncrement.major);
+      expect(config.config.mergeMessage, 'Legacy msg');
+      // Only the new files are written; the legacy one stays untouched.
+      expect(DoConfigurePublish.configFileFor(d).existsSync(), isTrue);
+    });
+
+    test('an existing config pre-selects instead of skipping', () async {
+      await RepoPublishConfig(
+        mergeMessage: 'Recorded msg',
+        versionIncrement: VersionIncrement.minor,
+      ).save(file: DoConfigurePublish.configFileFor(d));
+
+      final adapter = _StubAdapter([1]);
+      await makeCommand(adapter: adapter).configure(directory: d, ggLog: ggLog);
+
+      expect(adapter.capturedOptions, hasLength(1));
+      expect(adapter.capturedInitialIndices, [1]);
+      expect(capturedInitials, ['Recorded msg']);
+    });
+
+    test(
+      'carries nextCommitMessage and commits through a reconfigure',
+      () async {
+        await RepoPublishConfig(
+          nextCommitMessage: CommitMessage(firstLine: 'Next'),
+          commits: [
+            CommitMessage(firstLine: 'Done', details: ['d0']),
+          ],
+        ).save(file: DoConfigurePublish.configFileFor(d));
+
+        final config = await makeCommand().configure(
+          directory: d,
+          ggLog: ggLog,
+          versionIncrement: 'patch',
+          mergeMessage: 'msg',
+        );
+
+        expect(config.config.nextCommitMessage?.firstLine, 'Next');
+        expect(config.config.commits.single.firstLine, 'Done');
+        expect(reload().config.commits.single.details, ['d0']);
+      },
+    );
 
     test('overwrites a progress-free config file without complaint', () async {
       final file = DoConfigurePublish.configFileFor(d)
         ..createSync(recursive: true);
       file.writeAsStringSync(
-        '{"version_increment":"patch","merge_message":"old"}',
+        '{"publishConfig":{"versionIncrement":"patch","mergeMessage":"old"}}',
       );
 
       final config = await makeCommand().configure(
@@ -361,8 +458,8 @@ void main() {
         mergeMessage: 'new',
       );
 
-      expect(config.mergeMessage, 'new');
-      expect(reload().mergeMessage, 'new');
+      expect(config.config.mergeMessage, 'new');
+      expect(reload().config.mergeMessage, 'new');
     });
 
     test('--merge-only asks for no version increment', () async {
@@ -382,8 +479,8 @@ void main() {
       ]);
 
       final reloaded = reload();
-      expect(reloaded.versionIncrement, isNull);
-      expect(reloaded.mergeMessage, 'Merge message');
+      expect(reloaded.config.versionIncrement, isNull);
+      expect(reloaded.config.mergeMessage, 'Merge message');
     });
 
     test('CLI run resolves the directory and honours -m', () async {
@@ -399,8 +496,8 @@ void main() {
       ]);
 
       final reloaded = reload();
-      expect(reloaded.versionIncrement, 'major');
-      expect(reloaded.mergeMessage, 'CLI message');
+      expect(reloaded.config.versionIncrement, VersionIncrement.major);
+      expect(reloaded.config.mergeMessage, 'CLI message');
     });
   });
 }

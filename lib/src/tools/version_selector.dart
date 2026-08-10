@@ -15,7 +15,14 @@ import 'terminal_guard.dart';
 /// Abstraction over interactive selection used by [VersionSelector].
 abstract class InteractAdapter {
   /// Lets the user choose one of the given [options] and returns the index.
-  Future<int> choose({required String message, required List<String> options});
+  ///
+  /// [initialIndex] is the entry the cursor starts on — how a previously
+  /// recorded answer becomes the pre-selected default of a re-run.
+  Future<int> choose({
+    required String message,
+    required List<String> options,
+    int initialIndex = 0,
+  });
 }
 
 /// Default implementation of [InteractAdapter] that delegates to `interact`.
@@ -25,13 +32,18 @@ class DefaultInteractAdapter implements InteractAdapter {
   Future<int> choose({
     required String message,
     required List<String> options,
+    int initialIndex = 0,
   }) async {
     throwWhenNotATerminal(
       'the version-increment prompt',
-      'provide version_increment via .gg/gg-publish.json '
+      'provide versionIncrement via .gg/publish_config.json '
           '(gg do configure-publish) or --config',
     );
-    final select = Select(prompt: message, options: options);
+    final select = Select(
+      prompt: message,
+      options: options,
+      initialIndex: initialIndex,
+    );
 
     final result = select.interact(); // coverage:ignore-line
     return result;
@@ -51,8 +63,13 @@ class VersionSelector {
 
   /// Asks the user which [VersionIncrement] should be applied to
   /// [currentVersion].
+  ///
+  /// [preselect] is the answer a previous run recorded. It starts the cursor
+  /// on that entry instead of skipping the prompt: the question is always
+  /// asked, so a choice made earlier stays correctable.
   Future<VersionIncrement> selectIncrement({
     required Version currentVersion,
+    VersionIncrement? preselect,
   }) async {
     final patchVersion = Version(
       currentVersion.major,
@@ -75,17 +92,33 @@ class VersionSelector {
     final index = await _adapter.choose(
       message: cAction('Select version increment:'),
       options: options,
+      initialIndex: preselect == null ? 0 : _indexOf(preselect),
     );
 
+    return _incrementAt(index);
+  }
+
+  /// The option index [increment] is offered at — the inverse of
+  /// [_incrementAt], kept next to it so the two cannot drift.
+  static int _indexOf(VersionIncrement increment) {
+    switch (increment) {
+      case VersionIncrement.patch:
+        return 0;
+      case VersionIncrement.minor:
+        return 1;
+      case VersionIncrement.major:
+        return 2;
+    }
+  }
+
+  static VersionIncrement _incrementAt(int index) {
     switch (index) {
-      case 0:
-        return VersionIncrement.patch;
       case 1:
         return VersionIncrement.minor;
       case 2:
         return VersionIncrement.major;
       default:
-        // Fallback to patch when an unexpected index is returned.
+        // Index 0 and — defensively — any unexpected index mean patch.
         return VersionIncrement.patch;
     }
   }

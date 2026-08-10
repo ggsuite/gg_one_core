@@ -18,7 +18,11 @@ import 'package:pub_semver/pub_semver.dart';
 
 import '../../tools/ensure_publish_config_ignored.dart';
 import '../../tools/publish_config.dart';
+import '../../tools/publish_files.dart';
+import '../../tools/publish_state.dart';
+import '../../tools/repo_publish_config.dart';
 import '../../tools/terminal_guard.dart';
+import '../../tools/ticket_description.dart';
 import '../../tools/version_selector.dart';
 
 /// Typedef for editing the merge message interactively.
@@ -27,12 +31,16 @@ typedef EditMessage = Future<String?> Function(String initialMessage);
 /// Typedef for confirming feature branch deletion.
 typedef ConfirmDeleteFeatureBranch = bool Function(String branchName);
 
-/// Interactively builds the `.gg/gg-publish.json` publish configuration for
-/// the current repository: version increment (patch/minor/major) plus merge
-/// message. `gg do publish` runs this automatically when it is started
-/// without a configuration, so every interactive decision is made up front —
-/// the same file then collects the per-step publish progress and is removed
-/// after a fully successful publish.
+/// Interactively builds the `.gg/publish_config.json` of the current
+/// repository: version increment (patch/minor/major) plus merge message.
+/// `gg do publish` runs this automatically when it is started without a
+/// configuration, so every interactive decision is made up front — the
+/// sibling `.gg/publish_state.json` then collects the per-step publish
+/// progress and both are removed after a fully successful publish.
+///
+/// Answers already on disk are **pre-selected, not skipped**: the prompts run
+/// again with the recorded increment and merge message as their defaults, so
+/// a choice made in an earlier run stays correctable.
 /// Given on the command line, `--message` and `--delete-remote-branch` skip
 /// the corresponding interactive prompt. `--merge-only` configures a
 /// `gg do publish --merge-only` run: no version increment is asked for,
@@ -69,22 +77,12 @@ class DoConfigurePublish extends DirCommand<void> {
   final LocalBranch _localBranch;
   final EnsurePublishConfigIgnored _ensureIgnored;
 
-  /// Returns the `.gg/gg-publish.json` file for [repoDir].
-  ///
-  /// The files inside `.gg` are no longer hidden. A publish that was
-  /// interrupted before that change left its progress under the old
-  /// `.gg/.gg-publish.json`; renaming it here keeps `--continue` working
-  /// across the upgrade instead of reporting "nothing to continue".
-  static File configFileFor(Directory repoDir) {
-    final file = File(join(repoDir.path, '.gg', 'gg-publish.json'));
-    final legacy = File(join(repoDir.path, '.gg', '.gg-publish.json'));
+  /// Returns the `.gg/publish_config.json` file for [repoDir].
+  static File configFileFor(Directory repoDir) =>
+      repoPublishConfigFile(repoDir);
 
-    if (!file.existsSync() && legacy.existsSync()) {
-      legacy.renameSync(file.path);
-    }
-
-    return file;
-  }
+  /// Returns the `.gg/publish_state.json` file for [repoDir].
+  static File stateFileFor(Directory repoDir) => publishStateFile(repoDir);
 
   @override
   Future<void> get({required Directory directory, required GgLog ggLog}) async {
@@ -102,23 +100,25 @@ class DoConfigurePublish extends DirCommand<void> {
   }
 
   /// Builds the publish configuration for [directory], writes it to
-  /// `<repo>/.gg/gg-publish.json` and returns it. Before the file is
-  /// written, `.gg/gg-publish.json` is added to the repository's
-  /// `.gitignore` (and that change committed) so the runtime file never
-  /// shows up as an untracked file.
+  /// `<repo>/.gg/publish_config.json` (and the run answers that belong to
+  /// `<repo>/.gg/publish_state.json`) and returns both. Before anything is
+  /// written, the two files are added to the repository's `.gitignore` (and
+  /// that change committed) so they never show up as untracked files.
   ///
   /// [versionIncrement], [mergeMessage] and [deleteFeatureBranch] are presets
   /// (e.g. from `-m`/`--delete-feature-branch` or a programmatic caller): a
-  /// preset value is used as-is and its prompt is skipped. A missing merge
-  /// message is asked for with the `ticket.json` description as the initial
-  /// value; an empty answer falls back to the description and finally to
-  /// `Publish <dirname>`, so it is never empty. The delete-feature-branch
-  /// decision is asked HERE — before the publish starts — so no interactive
-  /// prompt sits between the irreversible publish steps anymore.
+  /// preset value is used as-is and its prompt is skipped. Everything else is
+  /// **asked every time**, with the answer of the previous run pre-selected:
+  /// the recorded increment starts the cursor, the recorded merge message
+  /// fills the editor. An empty answer falls back to the recorded value, then
+  /// to the `ticket.json` description and finally to `Publish <dirname>`, so
+  /// the message is never empty. The delete-feature-branch decision is asked
+  /// HERE — before the publish starts — so no interactive prompt sits between
+  /// the irreversible publish steps anymore.
   ///
   /// [mergeOnly] configures a `gg do publish --merge-only` run: it releases
   /// nothing, so no version increment is asked for and none is stored.
-  Future<PublishConfig> configure({
+  Future<RepoPublishFiles> configure({
     required Directory directory,
     required GgLog ggLog,
     String? versionIncrement,
@@ -129,22 +129,19 @@ class DoConfigurePublish extends DirCommand<void> {
     await check(directory: directory);
 
     // Never clobber the progress of an unfinished publish — rewriting the
-    // file would silently discard `done_steps`, and the next publish would
-    // re-run steps that already happened (e.g. bump and release a second
-    // version on top of the already-published one).
-    final file = configFileFor(directory);
-    if (file.existsSync()) {
-      final existing = PublishConfig.load(
-        configArg: file.path,
-        fallbackDir: directory.path,
-      );
-      if (existing.hasStepProgress) {
-        throw Exception(
-          cError(
-            unfinishedPublishMessage(path: file.path, command: 'gg do publish'),
+    // answers would leave `doneSteps` pointing at a plan nobody chose, and
+    // the next publish would re-run steps that already happened (e.g. bump
+    // and release a second version on top of the already-published one).
+    final existing = loadRepoPublishFiles(directory);
+    if (existing.state.hasStepProgress) {
+      throw Exception(
+        cError(
+          unfinishedPublishMessage(
+            path: stateFileFor(directory).path,
+            command: 'gg do publish',
           ),
-        );
-      }
+        ),
+      );
     }
 
     await _ensureIgnored.ensure(directory: directory);
@@ -154,17 +151,22 @@ class DoConfigurePublish extends DirCommand<void> {
     // never created, so the prompt is skipped and no increment is stored.
     final increment = mergeOnly
         ? null
-        : versionIncrement ??
-              (await _versionSelector.selectIncrement(
-                currentVersion: await _currentVersion(directory),
-              )).name;
+        : versionIncrement != null
+        ? parseVersionIncrement(versionIncrement)
+        : await _versionSelector.selectIncrement(
+            currentVersion: await _currentVersion(directory),
+            preselect: existing.config.versionIncrement,
+          );
 
     var message = mergeMessage?.trim() ?? '';
     if (message.isEmpty) {
-      final ticketDescription = _readTicketDescription(directory) ?? '';
-      message = (await _editMessage(ticketDescription) ?? '').trim();
+      final seed =
+          existing.config.mergeMessage?.trim() ??
+          readTicketDescriptionForRepo(directory)?.trim() ??
+          '';
+      message = (await _editMessage(seed) ?? '').trim();
       if (message.isEmpty) {
-        message = ticketDescription.trim();
+        message = seed;
       }
       if (message.isEmpty) {
         message = 'Publish ${basename(directory.path)}';
@@ -177,14 +179,19 @@ class DoConfigurePublish extends DirCommand<void> {
           await _localBranch.get(directory: directory, ggLog: <String>[].add),
         );
 
-    final config = PublishConfig(
-      versionIncrement: increment,
+    // Built explicitly rather than via copyWith: a merge-only run must clear
+    // a recorded increment, not inherit it. The AI-maintained halves
+    // (nextCommitMessage, commits) are carried over untouched.
+    final config = RepoPublishConfig(
       mergeMessage: message,
-      deleteFeatureBranch: delete,
+      versionIncrement: increment,
+      nextCommitMessage: existing.config.nextCommitMessage,
+      commits: existing.config.commits,
     );
-    await config.save(file: file);
-    // ggLog(cDetail('Wrote publish configuration to ${file.path}'));
-    return config;
+    final state = existing.state.copyWith(deleteFeatureBranch: delete);
+    await config.save(file: configFileFor(directory));
+    await state.save(file: stateFileFor(directory));
+    return (config: config, state: state);
   }
 
   /// Reads the version used as the baseline for the increment preview.
@@ -217,38 +224,12 @@ class DoConfigurePublish extends DirCommand<void> {
     }
   }
 
-  /// Reads the optional description from the `ticket.json` file, used as the
-  /// default merge message. Malformed or hand-edited files must not crash
-  /// the configuration.
-  String? _readTicketDescription(Directory directory) {
-    final ticketFile = File(join(directory.path, 'ticket.json'));
-    if (!ticketFile.existsSync()) {
-      return null;
-    }
-
-    final dynamic decoded;
-    try {
-      decoded = jsonDecode(ticketFile.readAsStringSync());
-    } catch (_) {
-      return null;
-    }
-    if (decoded is! Map<String, dynamic>) {
-      return null;
-    }
-
-    final description = decoded['description']?.toString().trim();
-    if (description == null || description.isEmpty) {
-      return null;
-    }
-    return description;
-  }
-
   /// Opens an interactive editor for the merge message.
   // coverage:ignore-start
   static Future<String?> _defaultEditMessage(String initialMessage) async {
     throwWhenNotATerminal(
       'the merge message prompt',
-      'pass -m <message> or provide a .gg/gg-publish.json (--config)',
+      'pass -m <message> or provide a .gg/publish_config.json (--config)',
     );
     return Input(
       prompt: 'Edit merge message:',
@@ -263,7 +244,7 @@ class DoConfigurePublish extends DirCommand<void> {
     throwWhenNotATerminal(
       'the delete-feature-branch prompt',
       'pass --delete-feature-branch / --no-delete-feature-branch or set '
-          'delete_feature_branch in .gg/gg-publish.json',
+          'deleteFeatureBranch in .gg/publish_state.json',
     );
     final selection = Select(
       prompt: 'Delete feature branch $branchName on origin?',

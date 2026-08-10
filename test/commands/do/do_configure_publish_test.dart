@@ -91,7 +91,7 @@ void main() {
       'writes increment + message and gitignores the runtime file',
       () async {
         File(
-          join(d.path, '.ticket'),
+          join(d.path, 'ticket.json'),
         ).writeAsStringSync('{"description": "Ticket desc"}');
 
         final config = await makeCommand(
@@ -199,7 +199,7 @@ void main() {
 
     test('an empty edit falls back to the ticket description', () async {
       File(
-        join(d.path, '.ticket'),
+        join(d.path, 'ticket.json'),
       ).writeAsStringSync('{"description": "Ticket desc"}');
 
       final config = await makeCommand(
@@ -209,30 +209,33 @@ void main() {
       expect(config.mergeMessage, 'Ticket desc');
     });
 
-    test('an empty edit without .ticket falls back to Publish <dir>', () async {
-      final config = await makeCommand(
-        editMessage: (_) async => '',
-      ).configure(directory: d, ggLog: ggLog);
+    test(
+      'an empty edit without ticket.json falls back to Publish <dir>',
+      () async {
+        final config = await makeCommand(
+          editMessage: (_) async => '',
+        ).configure(directory: d, ggLog: ggLog);
 
-      expect(config.mergeMessage, 'Publish ${basename(d.path)}');
-    });
+        expect(config.mergeMessage, 'Publish ${basename(d.path)}');
+      },
+    );
 
-    group('merge-message default from .ticket', () {
-      test('empty when .ticket is malformed JSON (no crash)', () async {
-        File(join(d.path, '.ticket')).writeAsStringSync('{"description":');
+    group('merge-message default from ticket.json', () {
+      test('empty when ticket.json is malformed JSON (no crash)', () async {
+        File(join(d.path, 'ticket.json')).writeAsStringSync('{"description":');
         await makeCommand().configure(directory: d, ggLog: ggLog);
         expect(capturedInitials, ['']);
       });
 
-      test('empty when .ticket is not a JSON object', () async {
-        File(join(d.path, '.ticket')).writeAsStringSync('[]');
+      test('empty when ticket.json is not a JSON object', () async {
+        File(join(d.path, 'ticket.json')).writeAsStringSync('[]');
         await makeCommand().configure(directory: d, ggLog: ggLog);
         expect(capturedInitials, ['']);
       });
 
       test('empty when the description is blank', () async {
         File(
-          join(d.path, '.ticket'),
+          join(d.path, 'ticket.json'),
         ).writeAsStringSync('{"description": "   "}');
         await makeCommand().configure(directory: d, ggLog: ggLog);
         expect(capturedInitials, ['']);

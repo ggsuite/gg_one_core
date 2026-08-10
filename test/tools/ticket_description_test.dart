@@ -19,8 +19,8 @@ void main() {
   });
 
   group('readTicketDescription(ticketDir)', () {
-    test('returns the description of a valid .ticket file', () {
-      File('${d.path}/.ticket').writeAsStringSync(
+    test('returns the description of a valid ticket.json file', () {
+      File('${d.path}/ticket.json').writeAsStringSync(
         jsonEncode({'description': 'Improve commit behavior'}),
       );
       expect(readTicketDescription(d), 'Improve commit behavior');
@@ -31,7 +31,7 @@ void main() {
     });
 
     test('returns null for malformed or non-object JSON', () {
-      final file = File('${d.path}/.ticket');
+      final file = File('${d.path}/ticket.json');
 
       file.writeAsStringSync('{ not json');
       expect(readTicketDescription(d), isNull);
@@ -41,7 +41,7 @@ void main() {
     });
 
     test('returns null for a missing or empty description', () {
-      final file = File('${d.path}/.ticket');
+      final file = File('${d.path}/ticket.json');
 
       file.writeAsStringSync(jsonEncode({'other': 'x'}));
       expect(readTicketDescription(d), isNull);
@@ -52,9 +52,9 @@ void main() {
   });
 
   group('readTicketDescriptionForRepo(repoDir)', () {
-    test('finds the .ticket file above the repository', () {
-      // The layout of a real ticket: <ticket>/.ticket + <ticket>/<org>/<repo>.
-      File('${d.path}/.ticket').writeAsStringSync(
+    test('finds the ticket.json file above the repository', () {
+      // The layout of a real ticket: <ticket>/ticket.json + <ticket>/<org>/<repo>.
+      File('${d.path}/ticket.json').writeAsStringSync(
         jsonEncode({'description': 'Improve commit behavior'}),
       );
       final repo = Directory('${d.path}/ggsuite/gg_git')
@@ -63,7 +63,7 @@ void main() {
       expect(readTicketDescriptionForRepo(repo), 'Improve commit behavior');
     });
 
-    test('returns null when no ancestor carries a .ticket file', () {
+    test('returns null when no ancestor carries a ticket.json file', () {
       final repo = Directory('${d.path}/ggsuite/gg_git')
         ..createSync(recursive: true);
       expect(readTicketDescriptionForRepo(repo), isNull);

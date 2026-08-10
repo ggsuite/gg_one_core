@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `CommitMessage`, `RepoPublishConfig` and `PublishState` — the answers and the run state of a publish, split into `.gg/publish_config.json` and `.gg/publish_state.json`
+- `loadRepoPublishFiles` reads the new files and falls back to a legacy `gg-publish.json`
+- `VersionSelector.selectIncrement` takes a `preselect`, so a recorded answer becomes the pre-selected default instead of a skipped question
+
+### Changed
+
+- `do configure-publish` writes the two new files and asks every question again, pre-filled
+- `PublishConfig` is read-only legacy now, bridged by `legacySplit`
+
 ## 2.3.2 - 2026-08-10
 
 ### Fixed

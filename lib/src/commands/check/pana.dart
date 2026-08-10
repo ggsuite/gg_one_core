@@ -155,7 +155,7 @@ class Pana extends DirCommand<void> {
     await _installPana();
 
     // Run 'pana' and capture the output
-    final pana = Platform.isWindows ? 'pana.bat' : 'pana';
+    final pana = ggPlatform.isWindows ? 'pana.bat' : 'pana';
     final result = await processWrapper.run(pana, [
       '--no-warning',
       '--json',

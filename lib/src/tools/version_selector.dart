@@ -6,10 +6,10 @@
 
 import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_publish/gg_publish.dart';
-import 'package:interact/interact.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_semver/pub_semver.dart';
 
+import 'prompts.dart';
 import 'terminal_guard.dart';
 
 /// Abstraction over interactive selection used by [VersionSelector].
@@ -31,10 +31,7 @@ class DefaultInteractAdapter implements InteractAdapter {
       'provide version_increment via .gg/gg-publish.json '
           '(gg do configure-publish) or --config',
     );
-    final select = Select(prompt: message, options: options);
-
-    final result = select.interact(); // coverage:ignore-line
-    return result;
+    return GgPrompts.current.select(prompt: message, options: options);
   }
 }
 // coverage:ignore-end

@@ -12,11 +12,11 @@ import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_git/gg_git.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_version/gg_version.dart';
-import 'package:interact/interact.dart';
 import 'package:path/path.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import '../../tools/ensure_publish_config_ignored.dart';
+import '../../tools/prompts.dart';
 import '../../tools/publish_config.dart';
 import '../../tools/terminal_guard.dart';
 import '../../tools/version_selector.dart';
@@ -250,11 +250,12 @@ class DoConfigurePublish extends DirCommand<void> {
       'the merge message prompt',
       'pass -m <message> or provide a .gg/gg-publish.json (--config)',
     );
-    return Input(
+    return GgPrompts.current.input(
       prompt: 'Edit merge message:',
       defaultValue: initialMessage,
       initialText: initialMessage,
-    ).interact();
+      asMessageEditor: true,
+    );
   }
 
   /// Asks whether the feature branch should be deleted after publishing.
@@ -265,11 +266,10 @@ class DoConfigurePublish extends DirCommand<void> {
       'pass --delete-feature-branch / --no-delete-feature-branch or set '
           'delete_feature_branch in .gg/gg-publish.json',
     );
-    final selection = Select(
+    final selection = GgPrompts.current.select(
       prompt: 'Delete feature branch $branchName on origin?',
       options: const <String>['Yes', 'No'],
-      initialIndex: 0,
-    ).interact();
+    );
 
     return selection == 0;
   }

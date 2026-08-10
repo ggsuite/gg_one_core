@@ -520,6 +520,23 @@ class PublishConfig {
     );
   }
 
+  /// Returns a copy of this config carrying [deleteTicket].
+  ///
+  /// The ticket-cleanup question is asked once and its answer persisted, so a
+  /// `--continue` after a failure resumes with the decision the user already
+  /// made instead of asking again.
+  PublishConfig withDeleteTicket(bool deleteTicket) => PublishConfig(
+    versionIncrement: versionIncrement,
+    mergeMessage: mergeMessage,
+    channel: channel,
+    deleteTicket: deleteTicket,
+    deleteFeatureBranch: deleteFeatureBranch,
+    pr: pr,
+    branch: branch,
+    repos: repos,
+    doneSteps: doneSteps,
+  );
+
   /// Whether the repo-level publish step [step] already completed.
   bool isStepDone(String step) => doneSteps.contains(step);
 

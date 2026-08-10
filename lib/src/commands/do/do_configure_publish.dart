@@ -110,7 +110,7 @@ class DoConfigurePublish extends DirCommand<void> {
   /// [versionIncrement], [mergeMessage] and [deleteFeatureBranch] are presets
   /// (e.g. from `-m`/`--delete-feature-branch` or a programmatic caller): a
   /// preset value is used as-is and its prompt is skipped. A missing merge
-  /// message is asked for with the `.ticket` description as the initial
+  /// message is asked for with the `ticket.json` description as the initial
   /// value; an empty answer falls back to the description and finally to
   /// `Publish <dirname>`, so it is never empty. The delete-feature-branch
   /// decision is asked HERE — before the publish starts — so no interactive
@@ -217,11 +217,11 @@ class DoConfigurePublish extends DirCommand<void> {
     }
   }
 
-  /// Reads the optional description from the `.ticket` file, used as the
+  /// Reads the optional description from the `ticket.json` file, used as the
   /// default merge message. Malformed or hand-edited files must not crash
   /// the configuration.
   String? _readTicketDescription(Directory directory) {
-    final ticketFile = File(join(directory.path, '.ticket'));
+    final ticketFile = File(join(directory.path, 'ticket.json'));
     if (!ticketFile.existsSync()) {
       return null;
     }

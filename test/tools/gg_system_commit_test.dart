@@ -183,11 +183,11 @@ void main() {
         });
 
         test('falls back to the ticket description', () async {
-          // The repo sits inside a ticket folder carrying a .ticket file.
-          File('${d.path}/../.ticket').writeAsStringSync(
+          // The repo sits inside a ticket folder carrying a ticket.json file.
+          File('${d.path}/../ticket.json').writeAsStringSync(
             jsonEncode({'description': 'Ticket description wins'}),
           );
-          addTearDown(() => File('${d.path}/../.ticket').deleteSync());
+          addTearDown(() => File('${d.path}/../ticket.json').deleteSync());
 
           await File('${d.path}/user_code.dart').writeAsString('user work');
 

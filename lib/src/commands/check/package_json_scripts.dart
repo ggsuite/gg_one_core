@@ -95,6 +95,7 @@ class CheckPackageJsonScripts extends DirCommand<void> {
     final statusPrinter = GgStatusPrinter<void>(
       message: 'Checking package.json scripts',
       ggLog: ggLog,
+      dark: true,
     );
     statusPrinter.logStatus(GgStatusPrinterStatus.running);
 

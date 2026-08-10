@@ -720,6 +720,33 @@ void main() {
       });
     });
 
+    group('withDeleteTicket()', () {
+      test('records the answer while preserving every other value', () {
+        final cfg = PublishConfig(
+          versionIncrement: 'minor',
+          mergeMessage: 'm',
+          pr: false,
+          branch: 'feat',
+          repos: {'foo': RepoOverride(status: 'published')},
+          doneSteps: const ['merge'],
+        );
+        final updated = cfg.withDeleteTicket(true);
+        expect(updated.deleteTicket, isTrue);
+        expect(updated.versionIncrement, 'minor');
+        expect(updated.mergeMessage, 'm');
+        expect(updated.pr, isFalse);
+        expect(updated.branch, 'feat');
+        expect(updated.statusForRepo('foo'), 'published');
+        expect(updated.doneSteps, ['merge']);
+        // Original stays untouched (immutability).
+        expect(cfg.deleteTicket, isNull);
+      });
+
+      test('records a »keep the ticket« answer too', () {
+        expect(PublishConfig().withDeleteTicket(false).deleteTicket, isFalse);
+      });
+    });
+
     group('done_steps parsing in load()', () {
       test('parses a valid done_steps list and dedupes entries', () async {
         await writeConfig('cfg.json', '''

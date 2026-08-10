@@ -119,8 +119,10 @@ void main() {
             isA<Exception>().having(
               (e) => rmControls(e.toString()),
               'toString()',
-              'Exception: Pana failed. '
-                  'Run "pana" again to see details.',
+              allOf(
+                startsWith('Exception: Pana failed in ${d.path}\n'),
+                contains('FormatException: Unexpected end of input'),
+              ),
             ),
           ),
         );
@@ -128,10 +130,6 @@ void main() {
         // Check result
         expect(messages[0], contains('⌛️ Running pana'));
         expect(messages[1], contains('✗ Running pana'));
-        expect(
-          messages[2],
-          contains('FormatException: Unexpected end of input'),
-        );
       });
     });
 
@@ -256,8 +254,13 @@ void main() {
             isA<Exception>().having(
               (e) => rmControls(e.toString()),
               'toString()',
-              'Exception: Pana failed. '
-                  'Run "pana" again to see details.',
+              allOf(
+                startsWith('Exception: Pana failed in ${d.path}\n'),
+                contains('[x] 0/10 points: Provide a valid `pubspec.yaml`'),
+                contains(
+                  '* `pubspec.yaml` doesn\'t have a `repository` entry.',
+                ),
+              ),
             ),
           ),
         );
@@ -265,14 +268,6 @@ void main() {
         // Check result
         expect(messages[0], contains('⌛️ Running pana'));
         expect(messages[1], contains('✗ Running pana'));
-        expect(
-          messages[2],
-          contains('[x] 0/10 points: Provide a valid `pubspec.yaml`'),
-        );
-        expect(
-          messages[2],
-          contains('* `pubspec.yaml` doesn\'t have a `repository` entry.'),
-        );
       });
     });
 

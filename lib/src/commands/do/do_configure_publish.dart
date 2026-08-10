@@ -25,7 +25,7 @@ import '../../tools/version_selector.dart';
 typedef EditMessage = Future<String?> Function(String initialMessage);
 
 /// Typedef for confirming feature branch deletion.
-typedef ConfirmDeleteFeatureBranch = bool Function(String branchName);
+typedef ConfirmDeleteFeatureBranch = Future<bool> Function(String branchName);
 
 /// Interactively builds the `.gg/gg-publish.json` publish configuration for
 /// the current repository: version increment (patch/minor/major) plus merge
@@ -173,7 +173,7 @@ class DoConfigurePublish extends DirCommand<void> {
 
     final delete =
         deleteFeatureBranch ??
-        _confirmDeleteFeatureBranch(
+        await _confirmDeleteFeatureBranch(
           await _localBranch.get(directory: directory, ggLog: <String>[].add),
         );
 
@@ -250,7 +250,7 @@ class DoConfigurePublish extends DirCommand<void> {
       'the merge message prompt',
       'pass -m <message> or provide a .gg/gg-publish.json (--config)',
     );
-    return GgPrompts.current.input(
+    return await GgPrompts.current.input(
       prompt: 'Edit merge message:',
       defaultValue: initialMessage,
       initialText: initialMessage,
@@ -260,13 +260,15 @@ class DoConfigurePublish extends DirCommand<void> {
 
   /// Asks whether the feature branch should be deleted after publishing.
   /// Shared default for `configure-publish` and `do publish`.
-  static bool defaultConfirmDeleteFeatureBranch(String branchName) {
+  static Future<bool> defaultConfirmDeleteFeatureBranch(
+    String branchName,
+  ) async {
     throwWhenNotATerminal(
       'the delete-feature-branch prompt',
       'pass --delete-feature-branch / --no-delete-feature-branch or set '
           'delete_feature_branch in .gg/gg-publish.json',
     );
-    final selection = GgPrompts.current.select(
+    final selection = await GgPrompts.current.select(
       prompt: 'Delete feature branch $branchName on origin?',
       options: const <String>['Yes', 'No'],
     );

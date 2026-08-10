@@ -31,7 +31,7 @@ class DefaultInteractAdapter implements InteractAdapter {
       'provide version_increment via .gg/gg-publish.json '
           '(gg do configure-publish) or --config',
     );
-    return GgPrompts.current.select(prompt: message, options: options);
+    return await GgPrompts.current.select(prompt: message, options: options);
   }
 }
 // coverage:ignore-end

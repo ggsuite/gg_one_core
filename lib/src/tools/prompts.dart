@@ -28,7 +28,12 @@ abstract class GgPrompts {
   const GgPrompts();
 
   /// Lets the user pick one of [options] and returns the index picked.
-  int select({
+  ///
+  /// Asynchronous on purpose. Nothing in gg needs the answer synchronously
+  /// — every caller already awaits — and a synchronous contract would
+  /// force an embedder to block on its input, which not every platform
+  /// lets it do. `@tssuite/gg-js` uses Node's `readline` because of this.
+  Future<int> select({
     required String prompt,
     required List<String> options,
     int initialIndex = 0,
@@ -39,7 +44,7 @@ abstract class GgPrompts {
   /// [initialText] is put into the edit buffer, [defaultValue] is what an
   /// empty buffer means. [asMessageEditor] switches to the wider styling
   /// used for commit and merge messages.
-  String input({
+  Future<String> input({
     required String prompt,
     String? defaultValue,
     String? initialText,

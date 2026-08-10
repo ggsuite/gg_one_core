@@ -46,23 +46,23 @@ class InteractPrompts extends GgPrompts {
   const InteractPrompts();
 
   @override
-  int select({
+  Future<int> select({
     required String prompt,
     required List<String> options,
     int initialIndex = 0,
-  }) => Select(
+  }) async => Select(
     prompt: prompt,
     options: options,
     initialIndex: initialIndex,
   ).interact();
 
   @override
-  String input({
+  Future<String> input({
     required String prompt,
     String? defaultValue,
     String? initialText,
     bool asMessageEditor = false,
-  }) {
+  }) async {
     if (!asMessageEditor) {
       return Input(
         prompt: prompt,

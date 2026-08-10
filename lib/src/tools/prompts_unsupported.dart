@@ -22,14 +22,14 @@ class UnsupportedPrompts extends GgPrompts {
   const UnsupportedPrompts();
 
   @override
-  int select({
+  Future<int> select({
     required String prompt,
     required List<String> options,
     int initialIndex = 0,
   }) => throw GgPromptsUnsupportedError(prompt);
 
   @override
-  String input({
+  Future<String> input({
     required String prompt,
     String? defaultValue,
     String? initialText,

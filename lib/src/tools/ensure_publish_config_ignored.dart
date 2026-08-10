@@ -13,6 +13,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
 
 import 'ensure_gg_json_not_ignored.dart';
+import 'gg_commit_message.dart';
 import 'gg_state.dart';
 import 'pubspec_overrides_backup.dart';
 
@@ -128,7 +129,7 @@ class EnsurePublishConfigIgnored {
     final result = await _processWrapper.run('git', [
       'commit',
       '-m',
-      '#gg: Ignore the publish runtime files of gg',
+      '${ggCommitPrefix}Ignore the publish runtime files of gg',
       '--',
       ...paths,
     ], workingDirectory: directory.path);

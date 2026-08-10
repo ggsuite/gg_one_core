@@ -157,6 +157,7 @@ class TypeScriptFormatter extends Formatter {
     final statusPrinter = GgStatusPrinter<ProcessResult>(
       ggLog: ggLog,
       message: 'Running "$label"',
+      dark: true,
     );
     statusPrinter.logStatus(GgStatusPrinterStatus.running);
 

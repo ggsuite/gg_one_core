@@ -7,6 +7,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:gg_lang/gg_lang.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_one_core/gg_one_core.dart';
 import 'package:gg_process/gg_process.dart';
@@ -43,10 +44,10 @@ void main() {
     File(join(d.path, 'pnpm-lock.yaml')).writeAsStringSync('');
   }
 
-  // Forces the publish target (bypasses reading pubspec/package.json), so the
+  // Forces the publish targets (bypasses reading pubspec/package.json), so the
   // registry-resolution path runs under our control.
-  void stubTarget(String target) {
-    when(() => publishTo.fromDirectory(any())).thenAnswer((_) async => target);
+  void stubTargets(Set<PublishTarget> targets) {
+    when(() => publishTo.targets(any())).thenAnswer((_) async => targets);
   }
 
   void stubConfig(String key, {String? value, int exitCode = 0}) {
@@ -98,14 +99,14 @@ void main() {
   group('NpmLoggedIn', () {
     group('skips (no npm authentication needed)', () {
       test('for a pub.dev target', () async {
-        stubTarget('pub.dev');
+        stubTargets({PublishTarget.pubDev});
         await run();
         expect(messages.single, contains('✓ Skipping npm auth check'));
         expect(messages.single, contains('pub.dev'));
       });
 
       test('for a none (private) target', () async {
-        stubTarget('none');
+        stubTargets(<PublishTarget>{});
         await run();
         expect(messages.single, contains('✓ Skipping npm auth check'));
         expect(messages.single, contains('none'));
@@ -114,7 +115,7 @@ void main() {
 
     group('resolves the target registry', () {
       test('from publishConfig.registry in package.json', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson(
           '{"name": "@org/x", "publishConfig": '
           '{"registry": "https://pkgs.dev.azure.com/feed/"}}',
@@ -143,7 +144,7 @@ void main() {
       });
 
       test('from the scope registry (@scope:registry)', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('{"name": "@org/x"}');
         stubConfig('@org:registry', value: 'https://scoped.example/');
         stubWhoami(
@@ -163,7 +164,7 @@ void main() {
       test(
         'falls back to the default registry when the scope has none',
         () async {
-          stubTarget('npm');
+          stubTargets({PublishTarget.npm});
           writePackageJson('{"name": "@org/x"}');
           stubConfig('@org:registry', value: 'undefined');
           stubConfig('registry', value: 'https://registry.npmjs.org/');
@@ -183,7 +184,7 @@ void main() {
       );
 
       test('uses the default registry for an unscoped package', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('{"name": "x"}');
         stubConfig('registry', value: 'https://registry.npmjs.org/');
         stubWhoami(
@@ -201,7 +202,7 @@ void main() {
       });
 
       test('runs a bare whoami when no registry is configured', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('{"name": "x"}');
         stubConfig('registry', value: 'undefined');
         stubWhoami(registry: null, exitCode: 0, stdout: 'u');
@@ -221,7 +222,7 @@ void main() {
       });
 
       test('treats a failing config lookup as no registry', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('{"name": "x"}');
         stubConfig('registry', exitCode: 1);
         stubWhoami(registry: null, exitCode: 0, stdout: 'u');
@@ -237,7 +238,7 @@ void main() {
       // The target is forced via the injected PublishTo, so registry
       // resolution still runs even when package.json is missing/unparseable.
       test('when package.json is absent', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         File(join(d.path, 'pnpm-lock.yaml')).writeAsStringSync('');
         stubConfig('registry', value: 'https://registry.npmjs.org/');
         stubWhoami(
@@ -250,7 +251,7 @@ void main() {
       });
 
       test('when package.json is malformed', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('not json');
         stubConfig('registry', value: 'https://registry.npmjs.org/');
         stubWhoami(
@@ -263,7 +264,7 @@ void main() {
       });
 
       test('when package.json is not a JSON object', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('[1, 2, 3]');
         stubConfig('registry', value: 'https://registry.npmjs.org/');
         stubWhoami(
@@ -276,7 +277,7 @@ void main() {
       });
 
       test('when publishConfig has no registry field', () async {
-        stubTarget('npm');
+        stubTargets({PublishTarget.npm});
         writePackageJson('{"name": "x", "publishConfig": {}}');
         stubConfig('registry', value: 'https://registry.npmjs.org/');
         stubWhoami(
@@ -293,7 +294,7 @@ void main() {
       test(
         'throws for a clear auth failure (401), naming the registry',
         () async {
-          stubTarget('npm');
+          stubTargets({PublishTarget.npm});
           writePackageJson('{"name": "x"}');
           stubConfig('registry', value: 'https://registry.npmjs.org/');
           stubWhoami(
@@ -311,6 +312,13 @@ void main() {
                   contains('Not logged in to https://registry.npmjs.org/'),
                   contains('401 Unauthorized'),
                   contains('pnpm login --registry=https://registry.npmjs.org/'),
+                  // The package directory decides which pnpm corepack serves,
+                  // and every major version has its own credential store — a
+                  // login run elsewhere does not reach this package.
+                  contains('in ${d.path}'),
+                  // …and when it still does not, the two versions have to be
+                  // brought together instead.
+                  contains('corepack prepare pnpm@latest --activate'),
                 ),
               ),
             ),
@@ -322,7 +330,7 @@ void main() {
       test(
         'skips (no false-fail) when the registry does not support whoami',
         () async {
-          stubTarget('npm');
+          stubTargets({PublishTarget.npm});
           writePackageJson('{"name": "x"}');
           stubConfig('registry', value: 'https://pkgs.dev.azure.com/feed/');
           stubWhoami(

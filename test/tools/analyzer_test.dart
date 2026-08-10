@@ -103,6 +103,7 @@ void main() {
 
   group('TypeScriptAnalyzer', () {
     test('runs tsc --noEmit via the detected package manager', () async {
+      File('${tmpDir.path}/tsconfig.json').writeAsStringSync('{}');
       when(
         () => processWrapper.run(
           any(),
@@ -167,7 +168,29 @@ void main() {
       expect(messages[1], contains('✓ Running "pnpm run lint"'));
     });
 
+    test('skips when there is no lint script and no tsconfig', () async {
+      // A hybrid whose package.json only publishes a payload ships no
+      // TypeScript sources. Falling back to `tsc` would demand a compiler
+      // the project has no reason to depend on.
+      final analyzer = TypeScriptAnalyzer(
+        processWrapper: processWrapper,
+        packageManager: (_) => TypeScriptPackageManager.pnpm,
+      );
+      await analyzer.run(directory: tmpDir, ggLog: ggLog);
+
+      verifyNever(
+        () => processWrapper.run(
+          any(),
+          any(),
+          workingDirectory: any(named: 'workingDirectory'),
+          runInShell: any(named: 'runInShell'),
+        ),
+      );
+      expect(messages.single, contains('Skipping TypeScript analysis'));
+    });
+
     test('throws and echoes tool output on failure', () async {
+      File('${tmpDir.path}/tsconfig.json').writeAsStringSync('{}');
       when(
         () => processWrapper.run(
           any(),
@@ -198,6 +221,7 @@ void main() {
     });
 
     test('detects the package manager from the directory by default', () async {
+      File('${tmpDir.path}/tsconfig.json').writeAsStringSync('{}');
       File('${tmpDir.path}/yarn.lock').writeAsStringSync('');
       when(
         () => processWrapper.run(

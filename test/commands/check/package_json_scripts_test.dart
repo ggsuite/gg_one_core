@@ -55,6 +55,18 @@ void main() {
     File('${tmpDir.path}/tsconfig.json').writeAsStringSync('{}');
   }
 
+  // Writes a hybrid that ships no TypeScript sources: a Dart package whose
+  // package.json exists to publish a payload to npm. No tsconfig.json.
+  void writeHybridWithoutTypeScript(Map<String, String> scripts) {
+    final entries = scripts.entries
+        .map((e) => '"${e.key}": "${e.value}"')
+        .join(', ');
+    File('${tmpDir.path}/pubspec.yaml').writeAsStringSync('name: foo\n');
+    File(
+      '${tmpDir.path}/package.json',
+    ).writeAsStringSync('{"name": "foo", "scripts": {$entries}}');
+  }
+
   Future<void> run() =>
       runner.run(['package-json-scripts', '--input', tmpDir.path]);
 
@@ -219,6 +231,70 @@ void main() {
               (e) => rmControls(e.toString()),
               'message',
               allOf(contains('prepublish'), contains('build')),
+            ),
+          ),
+        );
+      });
+    });
+
+    group('a hybrid without TypeScript', () {
+      test('needs neither build nor lint', () async {
+        writeHybridWithoutTypeScript({
+          'test': 'dart test',
+          'prepublishOnly': 'pnpm run test',
+        });
+        await run();
+        expect(messages.any((m) => m.contains('✓')), isTrue);
+      });
+
+      test('still needs test', () async {
+        writeHybridWithoutTypeScript({'prepublishOnly': 'pnpm run test'});
+        await expectLater(
+          run,
+          throwsA(
+            isA<Exception>().having(
+              (e) => rmControls(e.toString()),
+              'message',
+              allOf(
+                contains('missing required scripts: test'),
+                // build and lint are not demanded of it.
+                isNot(contains('build')),
+                isNot(contains('lint')),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('its publish-lifecycle script must reach test, not build', () async {
+        writeHybridWithoutTypeScript({
+          'test': 'dart test',
+          'prepublishOnly': 'echo nothing',
+        });
+        await expectLater(
+          run,
+          throwsA(
+            isA<Exception>().having(
+              (e) => rmControls(e.toString()),
+              'message',
+              contains('"prepublishOnly" script must run test'),
+            ),
+          ),
+        );
+      });
+
+      test('needs a publish-lifecycle script at all', () async {
+        writeHybridWithoutTypeScript({'test': 'dart test'});
+        await expectLater(
+          run,
+          throwsA(
+            isA<Exception>().having(
+              (e) => rmControls(e.toString()),
+              'message',
+              allOf(
+                contains('missing a publish-lifecycle script'),
+                contains('it must run test'),
+              ),
             ),
           ),
         );

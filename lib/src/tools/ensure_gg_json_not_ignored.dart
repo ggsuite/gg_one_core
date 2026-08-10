@@ -12,6 +12,7 @@ import 'package:gg_process/gg_process.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
 
+import 'gg_commit_message.dart';
 import 'gg_state.dart';
 
 /// Makes sure no gitignore rule excludes `.gg/gg.json`.
@@ -218,7 +219,7 @@ class EnsureGgJsonNotIgnored {
     final result = await _processWrapper.run('git', [
       'commit',
       '-m',
-      '#gg: Stop ignoring $ggJsonPath',
+      '${ggCommitPrefix}Stop ignoring $ggJsonPath',
       '--',
       ...paths,
     ], workingDirectory: directory.path);

@@ -25,7 +25,10 @@ export 'src/tools/did_command.dart';
 export 'src/tools/ensure_gg_json_not_ignored.dart';
 export 'src/tools/ensure_publish_config_ignored.dart';
 export 'src/tools/formatter.dart';
+export 'src/tools/gg_commit_message.dart';
+export 'src/tools/gg_owned_files.dart';
 export 'src/tools/gg_state.dart';
+export 'src/tools/gg_system_commit.dart';
 export 'src/tools/prompts.dart';
 export 'src/tools/prompts_interact.dart'
     if (dart.library.js_interop) 'src/tools/prompts_unsupported.dart'
@@ -34,4 +37,5 @@ export 'src/tools/publish_config.dart';
 export 'src/tools/pubspec_overrides_backup.dart';
 export 'src/tools/suggestion.dart';
 export 'src/tools/terminal_guard.dart';
+export 'src/tools/ticket_description.dart';
 export 'src/tools/version_selector.dart';

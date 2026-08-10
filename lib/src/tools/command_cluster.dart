@@ -40,11 +40,13 @@ class CommandCluster extends DirCommand<void> {
     required GgLog ggLog,
     bool? force,
     bool? saveState,
+    Map<String, dynamic> options = const {},
   }) => get(
     directory: directory,
     ggLog: ggLog,
     force: force,
     saveState: saveState,
+    options: options,
   );
 
   // ...........................................................................
@@ -54,6 +56,7 @@ class CommandCluster extends DirCommand<void> {
     required GgLog ggLog,
     bool? force,
     bool? saveState,
+    Map<String, dynamic> options = const {},
   }) async {
     // If we have no commands, let's do nothing.
     if (commands.isEmpty) {
@@ -69,7 +72,11 @@ class CommandCluster extends DirCommand<void> {
     // Execute commands.
     try {
       for (final command in commands) {
-        await command.exec(directory: directory, ggLog: ggLog);
+        await command.exec(
+          directory: directory,
+          ggLog: ggLog,
+          options: options,
+        );
       }
 
       // Save success

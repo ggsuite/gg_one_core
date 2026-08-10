@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:gg_console_colors/gg_console_colors.dart';
+import 'package:gg_lang/gg_lang.dart';
 import 'package:gg_one_core/gg_one_core.dart';
 import 'package:gg_publish/gg_publish.dart'
     show ReleaseChannel, VersionIncrement;
@@ -719,6 +720,33 @@ void main() {
       });
     });
 
+    group('withDeleteTicket()', () {
+      test('records the answer while preserving every other value', () {
+        final cfg = PublishConfig(
+          versionIncrement: 'minor',
+          mergeMessage: 'm',
+          pr: false,
+          branch: 'feat',
+          repos: {'foo': RepoOverride(status: 'published')},
+          doneSteps: const ['merge'],
+        );
+        final updated = cfg.withDeleteTicket(true);
+        expect(updated.deleteTicket, isTrue);
+        expect(updated.versionIncrement, 'minor');
+        expect(updated.mergeMessage, 'm');
+        expect(updated.pr, isFalse);
+        expect(updated.branch, 'feat');
+        expect(updated.statusForRepo('foo'), 'published');
+        expect(updated.doneSteps, ['merge']);
+        // Original stays untouched (immutability).
+        expect(cfg.deleteTicket, isNull);
+      });
+
+      test('records a »keep the ticket« answer too', () {
+        expect(PublishConfig().withDeleteTicket(false).deleteTicket, isFalse);
+      });
+    });
+
     group('done_steps parsing in load()', () {
       test('parses a valid done_steps list and dedupes entries', () async {
         await writeConfig('cfg.json', '''
@@ -773,17 +801,38 @@ void main() {
       test('appends steps in completion order and is idempotent', () {
         final cfg = PublishConfig(versionIncrement: 'patch', mergeMessage: 'm')
             .withStepDone('prepare_version')
-            .withStepDone('publish_registry')
+            .withStepDone('publish_registry_pub_dev')
             .withStepDone('prepare_version'); // no-op
-        expect(cfg.doneSteps, ['prepare_version', 'publish_registry']);
+        expect(cfg.doneSteps, ['prepare_version', 'publish_registry_pub_dev']);
         // The original config values survive the copies.
         expect(cfg.versionIncrement, 'patch');
         expect(cfg.mergeMessage, 'm');
       });
 
+      test('records each registry of a hybrid separately', () {
+        // A run whose pub.dev upload succeeded before npm failed has to
+        // resume at npm alone.
+        final cfg = PublishConfig()
+            .withStepDone(publishRegistryStep(PublishTarget.pubDev))
+            .withStepDone(publishRegistryStep(PublishTarget.npm));
+        expect(cfg.doneSteps, [
+          'publish_registry_pub_dev',
+          'publish_registry_npm',
+        ]);
+      });
+
       test('throws ArgumentError for an unknown step', () {
         expect(
           () => PublishConfig().withStepDone('fly_to_moon'),
+          throwsArgumentError,
+        );
+      });
+
+      test('refuses to write the legacy registry step', () {
+        // Readable so a --continue across a gg upgrade resumes, but never
+        // written again: it cannot say which registry it reached.
+        expect(
+          () => PublishConfig().withStepDone('publish_registry'),
           throwsArgumentError,
         );
       });
@@ -1031,15 +1080,51 @@ void main() {
       }
     });
 
-    test('allowedPublishSteps covers exactly the four tracked steps', () {
+    test('writablePublishSteps covers exactly the tracked steps', () {
       // The feature-branch deletion is idempotent and re-runs on resume,
-      // so it is deliberately not a tracked step.
-      expect(allowedPublishSteps, {
+      // so it is deliberately not a tracked step. The registry upload is
+      // tracked per registry, because a hybrid has two of them.
+      expect(writablePublishSteps, {
         'prepare_version',
-        'publish_registry',
+        'publish_registry_pub_dev',
+        'publish_registry_npm',
         'merge',
         'tag',
       });
+    });
+
+    test('allowedPublishSteps also accepts the legacy registry step', () {
+      expect(allowedPublishSteps, containsAll(writablePublishSteps));
+      expect(allowedPublishSteps, contains('publish_registry'));
+    });
+
+    test('publishRegistryStep names one marker per registry', () {
+      expect(
+        publishRegistryStep(PublishTarget.pubDev),
+        'publish_registry_pub_dev',
+      );
+      expect(publishRegistryStep(PublishTarget.npm), 'publish_registry_npm');
+    });
+
+    test('hasLegacyRegistryStep detects a marker of an older gg', () {
+      expect(
+        PublishConfig(doneSteps: ['publish_registry']).hasLegacyRegistryStep,
+        isTrue,
+      );
+      expect(
+        PublishConfig(
+          doneSteps: ['publish_registry_npm'],
+        ).hasLegacyRegistryStep,
+        isFalse,
+      );
+    });
+
+    test('a legacy registry step still counts as progress', () {
+      // Otherwise a plain »gg do publish« would not refuse a leftover file.
+      expect(
+        PublishConfig(doneSteps: ['publish_registry']).hasStepProgress,
+        isTrue,
+      );
     });
   });
 }

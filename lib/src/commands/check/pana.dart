@@ -57,15 +57,19 @@ class Pana extends DirCommand<void> {
       return;
     }
 
-    // Pana only applies to packages published to pub.dev. For npm (TypeScript)
-    // or `none` (private) targets there is nothing to analyze, so make the
-    // skip explicit instead of logging a misleading "Running pana".
+    // Pana only applies to packages published to pub.dev. For npm-only or
+    // `none` (private) targets there is nothing to analyze, so make the skip
+    // explicit instead of logging a misleading "Running pana".
+    //
+    // A hybrid that publishes to both registries *is* analyzed: its Dart side
+    // goes to pub.dev like any other package. That is new — before, the single
+    // publish target of a hybrid read `npm` and pana was skipped for it.
     if (publishedOnly) {
-      final target = await _publishTo.fromDirectory(directory);
-      if (target != 'pub.dev') {
+      final targets = await _publishTo.targets(directory);
+      if (!targets.contains(PublishTarget.pubDev)) {
         GgStatusPrinter<void>(
           ggLog: ggLog,
-          message: 'Skipping pana ($target target)',
+          message: 'Skipping pana (${targets.label} target)',
           dark: true,
         ).logStatus(GgStatusPrinterStatus.success);
         return;
@@ -89,12 +93,20 @@ class Pana extends DirCommand<void> {
     );
 
     if (!success) {
-      _logErrors(messages, errors);
-    }
-
-    if (code != 0) {
+      // The details are what the user acts on, so they travel with the
+      // exception instead of being logged separately: a caller that only
+      // surfaces the error message would otherwise swallow them and leave
+      // »run pana again« as the whole answer.
+      //
+      // The package is named because a ticket runs pana over many repos and
+      // the raw report does not say which one produced it. The two colors are
+      // concatenated rather than nested — nesting would reset the outer one.
+      final details = _details(messages, errors);
       throw Exception(
-        cError('Pana failed. Run "${cCmd('pana')}" again to see details.'),
+        [
+          '${cError('Pana failed in')} ${cPath(directory.path)}',
+          if (details.isNotEmpty) details,
+        ].join('\n'),
       );
     }
   }
@@ -109,17 +121,10 @@ class Pana extends DirCommand<void> {
   final PublishTo _publishTo;
 
   // ...........................................................................
-  void _logErrors(List<String> messages, List<String> errors) {
-    final errorMsg = errors.where((e) => e.isNotEmpty).join('\n');
-    final stdoutMsg = messages.where((e) => e.isNotEmpty).join('\n');
-
-    if (errorMsg.isNotEmpty) {
-      ggLog(errorMsg); // coverage:ignore-line
-    }
-    if (stdoutMsg.isNotEmpty) {
-      ggLog(stdoutMsg);
-    }
-  }
+  String _details(List<String> messages, List<String> errors) => [
+    ...errors,
+    ...messages,
+  ].where((e) => e.trim().isNotEmpty).join('\n').trim();
 
   // ...........................................................................
   List<String> _readProblems(Map<String, dynamic> jsonOutput) {

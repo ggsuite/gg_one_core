@@ -119,8 +119,10 @@ void main() {
             isA<Exception>().having(
               (e) => rmControls(e.toString()),
               'toString()',
-              'Exception: Pana failed. '
-                  'Run "pana" again to see details.',
+              allOf(
+                startsWith('Exception: Pana failed in ${d.path}\n'),
+                contains('FormatException: Unexpected end of input'),
+              ),
             ),
           ),
         );
@@ -128,10 +130,6 @@ void main() {
         // Check result
         expect(messages[0], contains('⌛️ Running pana'));
         expect(messages[1], contains('✗ Running pana'));
-        expect(
-          messages[2],
-          contains('FormatException: Unexpected end of input'),
-        );
       });
     });
 
@@ -190,6 +188,41 @@ void main() {
           expect(messages[0], contains('✓ Skipping pana'));
           expect(messages[0], contains('none'));
         });
+
+        test('for an npm-only hybrid', () async {
+          // publish_to: none on the Dart side, public on npm.
+          await File(
+            join(d.path, 'pubspec.yaml'),
+          ).writeAsString('name: x\nversion: 1.0.0\npublish_to: none\n');
+          await File(
+            join(d.path, 'package.json'),
+          ).writeAsString('{"name": "@org/x", "version": "1.0.0"}');
+
+          await runner.run(['pana', '--input', d.path, '--published-only']);
+
+          expect(messages[0], contains('✓ Skipping pana'));
+          expect(messages[0], contains('npm'));
+        });
+      });
+
+      group('when a hybrid publishes to pub.dev too', () {
+        test('pana runs', () async {
+          // A package.json next to the pubspec does not take the package off
+          // pub.dev — before this, the single publish target of a hybrid read
+          // »npm« and pana was skipped for it.
+          await File(
+            join(d.path, 'pubspec.yaml'),
+          ).writeAsString('name: x\nversion: 1.0.0\n');
+          await File(
+            join(d.path, 'package.json'),
+          ).writeAsString('{"name": "@org/x", "version": "1.0.0"}');
+          mockPanaResult(successReport);
+
+          await runner.run(['pana', '--input', d.path, '--published-only']);
+
+          expect(messages[0], contains('⌛️ Running pana'));
+          expect(messages[1], contains('✓ Running pana'));
+        });
       });
 
       test(
@@ -221,8 +254,13 @@ void main() {
             isA<Exception>().having(
               (e) => rmControls(e.toString()),
               'toString()',
-              'Exception: Pana failed. '
-                  'Run "pana" again to see details.',
+              allOf(
+                startsWith('Exception: Pana failed in ${d.path}\n'),
+                contains('[x] 0/10 points: Provide a valid `pubspec.yaml`'),
+                contains(
+                  '* `pubspec.yaml` doesn\'t have a `repository` entry.',
+                ),
+              ),
             ),
           ),
         );
@@ -230,14 +268,6 @@ void main() {
         // Check result
         expect(messages[0], contains('⌛️ Running pana'));
         expect(messages[1], contains('✗ Running pana'));
-        expect(
-          messages[2],
-          contains('[x] 0/10 points: Provide a valid `pubspec.yaml`'),
-        );
-        expect(
-          messages[2],
-          contains('* `pubspec.yaml` doesn\'t have a `repository` entry.'),
-        );
       });
     });
 

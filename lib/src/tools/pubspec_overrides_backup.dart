@@ -39,8 +39,9 @@ const String _pnpmWorkspaceFileName = 'pnpm-workspace.yaml';
 /// Publishing removes the localized redirections — the package must resolve
 /// against the registry, not against the developer's working copies. Without
 /// a backup the repository loses its workspace wiring the moment it is
-/// published; with it, the multi-repo flow puts the files back once the
-/// merge into the main branch is through, so the repo stays workable.
+/// published; with it, the publish flow puts the files back once the release
+/// is through and the feature branch is checked out again, so the repo
+/// stays workable.
 ///
 /// An existing backup is overwritten — the current files are the truth.
 /// Returns whether at least one backup was written; without the files there

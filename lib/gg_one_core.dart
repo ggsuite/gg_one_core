@@ -21,6 +21,7 @@ export 'src/commands/do/do_configure_publish.dart';
 export 'src/tools/analyzer.dart';
 export 'src/tools/checks.dart';
 export 'src/tools/command_cluster.dart';
+export 'src/tools/commit_message.dart';
 export 'src/tools/did_command.dart';
 export 'src/tools/ensure_gg_json_not_ignored.dart';
 export 'src/tools/ensure_publish_config_ignored.dart';
@@ -34,7 +35,10 @@ export 'src/tools/prompts_interact.dart'
     if (dart.library.js_interop) 'src/tools/prompts_unsupported.dart'
     show colorOff;
 export 'src/tools/publish_config.dart';
+export 'src/tools/publish_files.dart';
+export 'src/tools/publish_state.dart';
 export 'src/tools/pubspec_overrides_backup.dart';
+export 'src/tools/repo_publish_config.dart';
 export 'src/tools/suggestion.dart';
 export 'src/tools/terminal_guard.dart';
 export 'src/tools/ticket_description.dart';

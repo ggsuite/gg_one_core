@@ -13,6 +13,9 @@ import 'package:gg_publish/gg_publish.dart'
     show ReleaseChannel, VersionIncrement;
 import 'package:path/path.dart' as p;
 
+import 'publish_state.dart';
+import 'repo_publish_config.dart';
+
 /// Allowed values for `version_increment` in a `.gg-publish.json` file.
 const Set<String> allowedVersionIncrements = {'patch', 'minor', 'major'};
 
@@ -549,6 +552,37 @@ class PublishConfig {
   /// flow re-asks each of them instead of trusting the marker.
   bool get hasLegacyRegistryStep =>
       doneSteps.contains(legacyPublishRegistryStep);
+
+  /// Splits this legacy config into the per-repo pair that replaced it.
+  ///
+  /// The only bridge between the old single `gg-publish.json` and the new
+  /// `publish_config.json` / `publish_state.json`: reading a leftover file
+  /// keeps an in-flight ticket resumable, while everything written from now
+  /// on uses the new pair. The field precedence is the one [forRepo] uses —
+  /// a `repos.<name>` entry beats the top-level default.
+  ({RepoPublishConfig config, PublishState state}) legacySplit(
+    String repoName,
+  ) {
+    final override = repos[repoName];
+    final increment = override?.versionIncrement ?? versionIncrement;
+    return (
+      config: RepoPublishConfig(
+        mergeMessage: override?.mergeMessage ?? mergeMessage,
+        versionIncrement: increment == null
+            ? null
+            : parseVersionIncrement(increment),
+      ),
+      state: PublishState(
+        status: override?.status,
+        doneSteps: doneSteps,
+        branch: branch,
+        pr: pr,
+        channel: override?.channel ?? channel,
+        deleteTicket: deleteTicket,
+        deleteFeatureBranch: deleteFeatureBranch,
+      ),
+    );
+  }
 
   /// Returns a copy of this config with [step] appended to [doneSteps].
   /// Throws [ArgumentError] for step names outside [writablePublishSteps] —

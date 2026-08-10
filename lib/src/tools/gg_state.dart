@@ -17,7 +17,9 @@ import 'package:path/path.dart';
 
 import 'ensure_gg_json_not_ignored.dart';
 import 'gg_commit_message.dart';
+import 'publish_state.dart';
 import 'pubspec_overrides_backup.dart';
+import 'repo_publish_config.dart';
 
 /// Stores and retrieves the state of the check commands
 class GgState {
@@ -88,6 +90,8 @@ class GgState {
     '.gg.json',
     '.gg/gg.json',
     '.gg/gg-publish.json',
+    '.gg/$repoPublishConfigFileName',
+    '.gg/$publishStateFileName',
     '.gg/.gg.json',
     '.gg/.gg-publish.json',
     pubspecOverridesBackupPath,

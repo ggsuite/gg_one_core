@@ -9,4 +9,4 @@
 // coverage:ignore-file
 
 /// The version of the `gg_one_core` package.
-const String ggOneCoreVersion = '2.3.2';
+const String ggOneCoreVersion = '2.4.0';

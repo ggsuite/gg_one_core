@@ -15,7 +15,9 @@ import 'package:path/path.dart';
 import 'ensure_gg_json_not_ignored.dart';
 import 'gg_commit_message.dart';
 import 'gg_state.dart';
+import 'publish_state.dart';
 import 'pubspec_overrides_backup.dart';
+import 'repo_publish_config.dart';
 
 /// Makes sure the files a publish writes beside the release are listed in a
 /// repository's `.gitignore`: the runtime publish file `.gg/gg-publish.json`
@@ -56,14 +58,18 @@ class EnsurePublishConfigIgnored {
   final GgProcessWrapper _processWrapper;
   late final EnsureGgJsonNotIgnored _ggJsonGuard;
 
-  /// The `.gitignore` entry that hides the runtime publish file from git.
+  /// The `.gitignore` entry that hid the runtime publish file of gg versions
+  /// before the config/state split. Still maintained so a working copy that
+  /// carries a leftover `gg-publish.json` keeps it invisible to git.
   static const String entry = '.gg/gg-publish.json';
 
-  /// All `.gitignore` entries this helper maintains: the runtime publish
-  /// file and the workspace-wiring backups a publish writes
-  /// (`pubspec_overrides.yaml` for Dart, `pnpm-workspace.yaml` for
-  /// pnpm-managed TypeScript).
+  /// All `.gitignore` entries this helper maintains: the answered publish
+  /// inputs, the progress of a publish run, the legacy runtime file and the
+  /// workspace-wiring backups a publish writes (`pubspec_overrides.yaml` for
+  /// Dart, `pnpm-workspace.yaml` for pnpm-managed TypeScript).
   static const List<String> entries = [
+    '.gg/$repoPublishConfigFileName',
+    '.gg/$publishStateFileName',
     entry,
     pubspecOverridesBackupPath,
     pnpmWorkspaceBackupPath,

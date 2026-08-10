@@ -747,6 +747,59 @@ void main() {
       });
     });
 
+    group('legacySplit()', () {
+      test('splits the answers from the run progress', () {
+        final split = PublishConfig(
+          versionIncrement: 'minor',
+          mergeMessage: 'm',
+          channel: 'stable',
+          deleteTicket: true,
+          deleteFeatureBranch: false,
+          pr: true,
+          branch: 'feat',
+          doneSteps: const ['merge'],
+        ).legacySplit('foo');
+
+        expect(split.config.mergeMessage, 'm');
+        expect(split.config.versionIncrement, VersionIncrement.minor);
+        expect(split.state.doneSteps, ['merge']);
+        expect(split.state.branch, 'feat');
+        expect(split.state.pr, isTrue);
+        expect(split.state.channel, 'stable');
+        expect(split.state.deleteTicket, isTrue);
+        expect(split.state.deleteFeatureBranch, isFalse);
+        expect(split.state.status, isNull);
+      });
+
+      test('lets a repo override win over the top-level default', () {
+        final split = PublishConfig(
+          versionIncrement: 'patch',
+          mergeMessage: 'top',
+          channel: 'stable',
+          repos: {
+            'foo': RepoOverride(
+              versionIncrement: 'major',
+              mergeMessage: 'mine',
+              channel: 'rc',
+              status: 'published',
+            ),
+          },
+        ).legacySplit('foo');
+
+        expect(split.config.mergeMessage, 'mine');
+        expect(split.config.versionIncrement, VersionIncrement.major);
+        expect(split.state.channel, 'rc');
+        expect(split.state.status, 'published');
+      });
+
+      test('yields no increment when none was recorded', () {
+        expect(
+          PublishConfig().legacySplit('foo').config.versionIncrement,
+          isNull,
+        );
+      });
+    });
+
     group('done_steps parsing in load()', () {
       test('parses a valid done_steps list and dedupes entries', () async {
         await writeConfig('cfg.json', '''

@@ -11,6 +11,14 @@ import 'package:interact/interact.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('createDefaultPrompts()', () {
+    test('hands out the interact prompts on a native build', () {
+      // Constructing them touches no terminal — only select() and input()
+      // do, which is why they sit behind a coverage:ignore block.
+      expect(createDefaultPrompts(), isA<InteractPrompts>());
+    });
+  });
+
   group('messageEditorTheme', () {
     test('prints the prompt in yellow', () {
       final styled = messageEditorTheme.messageStyle('Edit commit message');

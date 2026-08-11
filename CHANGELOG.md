@@ -14,7 +14,8 @@ breaks a Wasm build outright.
 
 - The message editor theme moved here from `gg_multi_core`, next to the
 prompts it styles.
-- &quot;First javascript implementation&quot;
+- "First javascript implementation"
+- Fix shell changes
 
 ## 2.4.0 - 2026-08-10
 

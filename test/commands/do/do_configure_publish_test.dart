@@ -82,7 +82,8 @@ void main() {
           capturedInitials.add(initial);
           return initial;
         },
-    confirmDeleteFeatureBranch: confirmDeleteFeatureBranch ?? (_) => false,
+    confirmDeleteFeatureBranch:
+        confirmDeleteFeatureBranch ?? (_) async => false,
   );
 
   RepoPublishFiles reload() => loadRepoPublishFiles(d);
@@ -123,7 +124,7 @@ void main() {
       test('asks with the current branch name and stores the answer', () async {
         var promptedBranch = '';
         final config = await makeCommand(
-          confirmDeleteFeatureBranch: (branch) {
+          confirmDeleteFeatureBranch: (branch) async {
             promptedBranch = branch;
             return true;
           },
@@ -138,7 +139,7 @@ void main() {
       test('a preset skips the prompt', () async {
         final config =
             await makeCommand(
-              confirmDeleteFeatureBranch: (_) =>
+              confirmDeleteFeatureBranch: (_) async =>
                   fail('Prompt must not run for a preset decision.'),
             ).configure(
               directory: d,
@@ -154,7 +155,7 @@ void main() {
         final runner = CommandRunner<void>('gg', 'gg')
           ..addCommand(
             makeCommand(
-              confirmDeleteFeatureBranch: (_) =>
+              confirmDeleteFeatureBranch: (_) async =>
                   fail('Prompt must not run when the flag is given.'),
             ),
           );

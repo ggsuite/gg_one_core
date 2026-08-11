@@ -12,11 +12,11 @@ import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_git/gg_git.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_version/gg_version.dart';
-import 'package:interact/interact.dart';
 import 'package:path/path.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import '../../tools/ensure_publish_config_ignored.dart';
+import '../../tools/prompts.dart';
 import '../../tools/publish_config.dart';
 import '../../tools/publish_files.dart';
 import '../../tools/publish_state.dart';
@@ -29,7 +29,7 @@ import '../../tools/version_selector.dart';
 typedef EditMessage = Future<String?> Function(String initialMessage);
 
 /// Typedef for confirming feature branch deletion.
-typedef ConfirmDeleteFeatureBranch = bool Function(String branchName);
+typedef ConfirmDeleteFeatureBranch = Future<bool> Function(String branchName);
 
 /// Interactively builds the `.gg/publish_config.json` of the current
 /// repository: version increment (patch/minor/major) plus merge message.
@@ -175,7 +175,7 @@ class DoConfigurePublish extends DirCommand<void> {
 
     final delete =
         deleteFeatureBranch ??
-        _confirmDeleteFeatureBranch(
+        await _confirmDeleteFeatureBranch(
           await _localBranch.get(directory: directory, ggLog: <String>[].add),
         );
 
@@ -231,26 +231,28 @@ class DoConfigurePublish extends DirCommand<void> {
       'the merge message prompt',
       'pass -m <message> or provide a .gg/publish_config.json (--config)',
     );
-    return Input(
+    return await GgPrompts.current.input(
       prompt: 'Edit merge message:',
       defaultValue: initialMessage,
       initialText: initialMessage,
-    ).interact();
+      asMessageEditor: true,
+    );
   }
 
   /// Asks whether the feature branch should be deleted after publishing.
   /// Shared default for `configure-publish` and `do publish`.
-  static bool defaultConfirmDeleteFeatureBranch(String branchName) {
+  static Future<bool> defaultConfirmDeleteFeatureBranch(
+    String branchName,
+  ) async {
     throwWhenNotATerminal(
       'the delete-feature-branch prompt',
       'pass --delete-feature-branch / --no-delete-feature-branch or set '
           'deleteFeatureBranch in .gg/publish_state.json',
     );
-    final selection = Select(
+    final selection = await GgPrompts.current.select(
       prompt: 'Delete feature branch $branchName on origin?',
       options: const <String>['Yes', 'No'],
-      initialIndex: 0,
-    ).interact();
+    );
 
     return selection == 0;
   }

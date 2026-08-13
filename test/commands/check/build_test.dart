@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -34,9 +34,8 @@ void main() {
     File('${d.path}/tsconfig.json').writeAsStringSync('{}');
     final s = scripts ?? const {'build': 'tsc'};
     final entries = s.entries.map((e) => '"${e.key}":"${e.value}"').join(',');
-    File(
-      '${d.path}/package.json',
-    ).writeAsStringSync('{"name":"b","scripts":{$entries}}');
+    File('${d.path}/package.json')
+        .writeAsStringSync('{"name":"b","scripts":{$entries}}');
     if (pnpm) {
       File('${d.path}/pnpm-lock.yaml').writeAsStringSync('');
     }

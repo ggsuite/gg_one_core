@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2025 Göran Hegenberg. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -124,9 +124,8 @@ void main() {
           await commitGitignore('coverage\n$pattern\nbuild/\n');
           writeGgJson();
 
-          final changed = await EnsureGgJsonNotIgnored(
-            ggLog: ggLog,
-          ).ensure(directory: d);
+          final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+              .ensure(directory: d);
 
           expect(changed, isTrue);
           expect(
@@ -150,9 +149,8 @@ void main() {
       test('resolving duplicates of the rule in the same pass', () async {
         await commitGitignore('.gg/\n.gg/\n');
 
-        final changed = await EnsureGgJsonNotIgnored(
-          ggLog: ggLog,
-        ).ensure(directory: d);
+        final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+            .ensure(directory: d);
 
         expect(changed, isTrue);
         expect(gitignore().readAsStringSync(), '.gg/*\n!.gg/gg.json\n');
@@ -163,9 +161,8 @@ void main() {
           'yet', () async {
         await commitGitignore('.gg/\n');
 
-        final changed = await EnsureGgJsonNotIgnored(
-          ggLog: ggLog,
-        ).ensure(directory: d);
+        final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+            .ensure(directory: d);
 
         expect(changed, isTrue);
         expect(await headFiles(), ['.gitignore']);
@@ -176,9 +173,8 @@ void main() {
     test('adds the missing negation after an existing ».gg/*« rule', () async {
       await commitGitignore('.gg/*\n');
 
-      final changed = await EnsureGgJsonNotIgnored(
-        ggLog: ggLog,
-      ).ensure(directory: d);
+      final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+          .ensure(directory: d);
 
       expect(changed, isTrue);
       expect(gitignore().readAsStringSync(), '.gg/*\n!.gg/gg.json\n');
@@ -188,9 +184,8 @@ void main() {
     test('drops a literal ».gg/gg.json« rule', () async {
       await commitGitignore('.gg/gg.json\n.gg/gg.json\n');
 
-      final changed = await EnsureGgJsonNotIgnored(
-        ggLog: ggLog,
-      ).ensure(directory: d);
+      final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+          .ensure(directory: d);
 
       expect(changed, isTrue);
       expect(gitignore().readAsStringSync(), '');
@@ -202,9 +197,8 @@ void main() {
       // the fix must peel both away.
       await commitGitignore('.gg/\n.gg/gg.json\n');
 
-      final changed = await EnsureGgJsonNotIgnored(
-        ggLog: ggLog,
-      ).ensure(directory: d);
+      final changed = await EnsureGgJsonNotIgnored(ggLog: ggLog)
+          .ensure(directory: d);
 
       expect(changed, isTrue);
       expect(gitignore().readAsStringSync(), '.gg/*\n!.gg/gg.json\n');
@@ -217,9 +211,8 @@ void main() {
 
       // Record a check success for the current content by hand — the state
       // file is still invisible to git at this point.
-      final hash = await LastChangesHash(
-        ggLog: ggLog,
-      ).get(directory: d, ggLog: ggLog);
+      final hash = await LastChangesHash(ggLog: ggLog)
+          .get(directory: d, ggLog: ggLog);
       File(join(d.path, '.gg', 'gg.json'))
         ..createSync(recursive: true)
         ..writeAsStringSync('{"canCommit":{"success":{"hash":$hash}}}');
@@ -264,9 +257,8 @@ void main() {
       });
 
       test('for a rule outside the repository root .gitignore', () async {
-        File(
-          join(d.path, '.git', 'info', 'exclude'),
-        ).writeAsStringSync('.gg/\n');
+        File(join(d.path, '.git', 'info', 'exclude'))
+            .writeAsStringSync('.gg/\n');
 
         await expectLater(
           () => EnsureGgJsonNotIgnored(ggLog: ggLog).ensure(directory: d),

@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -55,22 +55,20 @@ void main() {
     );
 
     // Mock the commands
-    when(() => isCommitted.exec(directory: d, ggLog: ggLog)).thenAnswer((
-      _,
-    ) async {
-      ggLog('isCommitted');
-      return true;
-    });
+    when(() => isCommitted.exec(directory: d, ggLog: ggLog))
+        .thenAnswer((_) async {
+          ggLog('isCommitted');
+          return true;
+        });
     when(() => isPushed.exec(directory: d, ggLog: ggLog)).thenAnswer((_) async {
       ggLog('isPushed');
       return true;
     });
-    when(() => isUpgraded.exec(directory: d, ggLog: ggLog)).thenAnswer((
-      _,
-    ) async {
-      ggLog('isUpgraded');
-      return true;
-    });
+    when(() => isUpgraded.exec(directory: d, ggLog: ggLog))
+        .thenAnswer((_) async {
+          ggLog('isUpgraded');
+          return true;
+        });
   });
 
   tearDown(() async {

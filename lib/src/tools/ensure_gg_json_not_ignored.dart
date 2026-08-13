@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2025 Göran Hegenberg. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -37,9 +37,8 @@ class EnsureGgJsonNotIgnored {
   EnsureGgJsonNotIgnored({
     required this.ggLog,
     GgState? state,
-    GgProcessWrapper processWrapper = const GgProcessWrapper(),
-  }) : _state = state ?? GgState(ggLog: ggLog),
-       _processWrapper = processWrapper;
+    this._processWrapper = const GgProcessWrapper(),
+  }) : _state = state ?? GgState(ggLog: ggLog);
 
   /// The logger used for logging.
   final GgLog ggLog;
@@ -133,9 +132,8 @@ class EnsureGgJsonNotIgnored {
     ], workingDirectory: directory.path);
 
     // Format: »<source>:<line>:<pattern><TAB><path>«
-    final match = RegExp(
-      r'^(.*?):(\d+):(.*)\t',
-    ).firstMatch(result.stdout.toString());
+    final match = RegExp(r'^(.*?):(\d+):(.*)\t')
+        .firstMatch(result.stdout.toString());
     if (result.exitCode != 0 || match == null) {
       throw Exception(cError(_manualFixMessage));
     }

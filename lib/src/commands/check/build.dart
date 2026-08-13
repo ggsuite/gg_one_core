@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -31,14 +31,11 @@ import 'package:mocktail/mocktail.dart' as mocktail;
 /// build here.
 class Build extends DirCommand<void> {
   /// Constructor.
-  Build({
-    required super.ggLog,
-    GgProcessWrapper processWrapper = const GgProcessWrapper(),
-  }) : _processWrapper = processWrapper,
-       super(
-         name: 'build',
-         description: 'Build a bridge repo via its package.json script',
-       );
+  Build({required super.ggLog, this._processWrapper = const GgProcessWrapper()})
+    : super(
+        name: 'build',
+        description: 'Build a bridge repo via its package.json script',
+      );
 
   /// Example instance for tests — logs to `print`.
   factory Build.example() => Build(ggLog: print);

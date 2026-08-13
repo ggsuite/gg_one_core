@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -121,9 +121,8 @@ class CheckPackageJsonScripts extends DirCommand<void> {
     // check because it carries a package.json, but it ships no sources to
     // build or lint. (A package.json without a pubspec.yaml and without a
     // tsconfig.json never gets here — checkProjectType reports it as none.)
-    final compilesTypeScript = File(
-      '${directory.path}/tsconfig.json',
-    ).existsSync();
+    final compilesTypeScript = File('${directory.path}/tsconfig.json')
+        .existsSync();
     final required = compilesTypeScript
         ? requiredNpmScripts
         : requiredNpmScriptsWithoutTypeScript;

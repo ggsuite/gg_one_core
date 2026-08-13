@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -135,9 +135,8 @@ void main() {
     });
 
     test('runs the package.json "lint" script when one is defined', () async {
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"lint":"eslint"}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"lint":"eslint"}}');
       when(
         () => processWrapper.run(
           any(),

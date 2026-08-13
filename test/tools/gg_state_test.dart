@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -78,9 +78,8 @@ void main() {
           await addAndCommitSampleFile(dLocal);
 
           // Get last changes hash
-          final hash = await LastChangesHash(
-            ggLog: messages.add,
-          ).get(directory: dLocal, ggLog: messages.add);
+          final hash = await LastChangesHash(ggLog: messages.add)
+              .get(directory: dLocal, ggLog: messages.add);
 
           // Set the state
           await ggState.writeSuccess(directory: dLocal, key: 'can-commit');
@@ -111,9 +110,9 @@ void main() {
 
           await ggState.writeSuccess(directory: dLocal, key: 'doCommit');
 
-          final contents =
-              json.decode(await checkJson.readAsString())
-                  as Map<String, dynamic>;
+          final contents = json.decode(
+            await checkJson.readAsString(),
+          ) as Map<String, dynamic>;
           for (final key in GgState.obsoleteKeys) {
             expect(contents.containsKey(key), isFalse, reason: key);
           }
@@ -198,9 +197,9 @@ void main() {
 
           // Re-introduce an obsolete key — the per-process memo skips a
           // second pruning read on this hot path.
-          final contents1 =
-              json.decode(await checkJson.readAsString())
-                  as Map<String, dynamic>;
+          final contents1 = json.decode(
+            await checkJson.readAsString(),
+          ) as Map<String, dynamic>;
           contents1['doPublish'] = {
             'success': {'hash': 2},
           };
@@ -208,9 +207,9 @@ void main() {
 
           await ggState.writeSuccess(directory: dLocal, key: 'canPush');
 
-          final contents2 =
-              json.decode(await checkJson.readAsString())
-                  as Map<String, dynamic>;
+          final contents2 = json.decode(
+            await checkJson.readAsString(),
+          ) as Map<String, dynamic>;
           expect(contents2.containsKey('doPublish'), isTrue);
           expect(contents2.containsKey('canPush'), isTrue);
         });
@@ -224,9 +223,9 @@ void main() {
 
           await ggState.writeSuccess(directory: dLocal, key: 'doCommit');
 
-          final contents =
-              json.decode(await checkJson.readAsString())
-                  as Map<String, dynamic>;
+          final contents = json.decode(
+            await checkJson.readAsString(),
+          ) as Map<String, dynamic>;
           expect(contents.containsKey('doCommit'), isTrue);
         });
 
@@ -238,9 +237,9 @@ void main() {
           await ggState.writeSuccess(directory: dLocal, key: 'doCommit');
 
           final checkJson = File(join(dLocal.path, '.gg', 'gg.json'));
-          final contents =
-              json.decode(await checkJson.readAsString())
-                  as Map<String, dynamic>;
+          final contents = json.decode(
+            await checkJson.readAsString(),
+          ) as Map<String, dynamic>;
           expect(contents.keys, containsAll(<String>['canCommit', 'doCommit']));
         });
       });
@@ -607,9 +606,8 @@ void main() {
       group('replaces the hash in .gg/gg.json with the current hash', () {
         test('when current hash is different', () async {
           // Get last changes hash
-          final hash = await LastChangesHash(
-            ggLog: messages.add,
-          ).get(directory: dLocal, ggLog: messages.add);
+          final hash = await LastChangesHash(ggLog: messages.add)
+              .get(directory: dLocal, ggLog: messages.add);
 
           // Set the state
           await ggState.writeSuccess(directory: dLocal, key: 'can-commit');
@@ -639,9 +637,8 @@ void main() {
 
         test('but not when the hash has not changed', () async {
           // Get last changes hash
-          final hash = await LastChangesHash(
-            ggLog: messages.add,
-          ).get(directory: dLocal, ggLog: messages.add);
+          final hash = await LastChangesHash(ggLog: messages.add)
+              .get(directory: dLocal, ggLog: messages.add);
 
           // Update the previous hash
           await ggState.updateHash(hash: hash, directory: dLocal);
@@ -709,9 +706,8 @@ void main() {
           final ggDir = Directory(join(dLocal.path, '.gg'));
           final current = File(join(ggDir.path, GgState.configFileName));
           final currentContent = current.readAsStringSync();
-          File(
-            join(ggDir.path, GgState.legacyConfigFileName),
-          ).writeAsStringSync('{}');
+          File(join(ggDir.path, GgState.legacyConfigFileName))
+              .writeAsStringSync('{}');
 
           expect(
             await ggState.readSuccess(

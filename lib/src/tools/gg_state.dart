@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -134,9 +134,8 @@ class GgState {
     );
 
     // If no config file exists, return false
-    final fileExists = await File(
-      _configFile(directory: directory).path,
-    ).exists();
+    final fileExists = await File(_configFile(directory: directory).path)
+        .exists();
 
     if (!fileExists) {
       return false;

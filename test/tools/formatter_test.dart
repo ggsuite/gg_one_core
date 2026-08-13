@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -157,9 +157,8 @@ void main() {
 
   group('TypeScriptFormatter', () {
     test('skips formatting when no "format" script exists (local)', () async {
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"lint":"eslint"}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"lint":"eslint"}}');
 
       final formatter = TypeScriptFormatter(
         processWrapper: processWrapper,
@@ -185,9 +184,8 @@ void main() {
 
     test('skips formatting when no "format:check" script exists '
         '(GitHub)', () async {
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"lint":"eslint"}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"lint":"eslint"}}');
 
       final formatter = TypeScriptFormatter(
         processWrapper: processWrapper,
@@ -212,9 +210,8 @@ void main() {
 
     test('throws and echoes tool output when the format script exits '
         'non-zero', () async {
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
       when(
         () => processWrapper.run(
           any(),
@@ -247,9 +244,8 @@ void main() {
     });
 
     test('runs the package.json "format" script locally', () async {
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
       when(
         () => processWrapper.run(
           any(),
@@ -314,9 +310,8 @@ void main() {
 
     test('detects the package manager from the directory by default', () async {
       File('${tmpDir.path}/pnpm-lock.yaml').writeAsStringSync('');
-      File(
-        '${tmpDir.path}/package.json',
-      ).writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
+      File('${tmpDir.path}/package.json')
+          .writeAsStringSync('{"scripts":{"format":"prettier --write ."}}');
       when(
         () => processWrapper.run(
           any(),

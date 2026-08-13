@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4.2 - 2026-08-13
+
+### Changed
+
+- `Pana` runs only for a package that already had a full release cycle: a
+version on pub.dev **and** a git version tag for exactly that version. A first
+publish has neither — pana then fails on the repository verification, because
+the package never reached the default branch — so pana is skipped with
+»Skipping pana (not on pub.dev yet)« or »Skipping pana (no git tag <version>)«
+instead of blocking `can publish`.
+
 ## 2.4.1 - 2026-08-11
 
 ### Added

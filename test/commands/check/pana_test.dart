@@ -8,12 +8,16 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:gg_git/gg_git_test_helpers.dart';
+import 'package:gg_lang/gg_lang.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_one_core/gg_one_core.dart';
 import 'package:gg_process/gg_process.dart';
+import 'package:gg_publish/gg_publish.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
+import 'package:gg_version/gg_version.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart';
+import 'package:pub_semver/pub_semver.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -27,9 +31,15 @@ void main() {
   final panaCmd = Platform.isWindows ? 'pana.bat' : 'pana';
 
   late GgProcessWrapper processWrapper;
+  late MockPublishedVersion publishedVersion;
+  late MockFromGit versionFromGit;
   late Pana pana;
   late CommandRunner<void> runner;
   late Directory d;
+
+  /// The version the package has on pub.dev in the default setup.
+  final released = Version(1, 0, 0);
+
   final successReport = File(
     'test/data/pana_success_report.json',
   ).readAsStringSync();
@@ -71,10 +81,46 @@ void main() {
   }
 
   // ...........................................................................
+  /// The version pub.dev serves, or null when the package is not there yet.
+  void mockPubDevVersion(Version? version) {
+    when(
+      () => publishedVersion.latestVersionFor(
+        target: PublishTarget.pubDev,
+        directory: any(named: 'directory'),
+        ggLog: any(named: 'ggLog'),
+      ),
+    ).thenAnswer((_) async => version);
+  }
+
+  // ...........................................................................
+  /// The version tags the repository carries.
+  void mockGitVersionTags(List<Version> tags) {
+    when(
+      () => versionFromGit.allVersions(
+        directory: any(named: 'directory'),
+        ggLog: any(named: 'ggLog'),
+      ),
+    ).thenAnswer((_) async => tags);
+  }
+
+  // ...........................................................................
+  setUpAll(() {
+    registerFallbackValue(Directory(''));
+    registerFallbackValue(ggLog);
+  });
+
+  // ...........................................................................
   setUp(() async {
     messages.clear();
     processWrapper = MockGgProcessWrapper();
-    pana = Pana(ggLog: ggLog, processWrapper: processWrapper);
+    publishedVersion = MockPublishedVersion();
+    versionFromGit = MockFromGit();
+    pana = Pana(
+      ggLog: ggLog,
+      processWrapper: processWrapper,
+      publishedVersion: publishedVersion,
+      versionFromGit: versionFromGit,
+    );
     runner = CommandRunner('test', 'test')..addCommand(pana);
     d = await Directory.systemTemp.createTemp('gg_test');
     await initCachedRepo(
@@ -86,6 +132,11 @@ void main() {
       },
     );
     mockPanaIsInstalled(isInstalled: true);
+
+    // The default is a package that already had a full release cycle — on
+    // pub.dev and tagged here — so the tests below stay about pana itself.
+    mockPubDevVersion(released);
+    mockGitVersionTags([released]);
   });
 
   // ...........................................................................
@@ -203,6 +254,52 @@ void main() {
           expect(messages[0], contains('✓ Skipping pana'));
           expect(messages[0], contains('npm'));
         });
+      });
+
+      group('when the package had no release cycle yet', () {
+        test('and pub.dev does not know it, skipping pana', () async {
+          // The first publish: nothing is on pub.dev, so pana has no released
+          // state to score against — its repository verification would fail
+          // for a package the user cannot fix.
+          mockPubDevVersion(null);
+
+          await runner.run(['pana', '--input', d.path]);
+
+          expect(messages[0], contains('✓ Skipping pana (not on pub.dev yet)'));
+          verifyNever(
+            () => versionFromGit.allVersions(
+              directory: any(named: 'directory'),
+              ggLog: any(named: 'ggLog'),
+            ),
+          );
+        });
+
+        test(
+          'and the published version has no git tag, skipping pana',
+          () async {
+            // pub.dev serves 1.0.0, but this repository never tagged it — the
+            // released state never arrived here, so pana cannot compare
+            // against it.
+            mockPubDevVersion(released);
+            mockGitVersionTags([Version(0, 1, 0)]);
+
+            await runner.run(['pana', '--input', d.path]);
+
+            expect(messages[0], contains('✓ Skipping pana (no git tag 1.0.0)'));
+          },
+        );
+
+        test(
+          'and the repository carries no tag at all, skipping pana',
+          () async {
+            mockPubDevVersion(released);
+            mockGitVersionTags([]);
+
+            await runner.run(['pana', '--input', d.path]);
+
+            expect(messages[0], contains('✓ Skipping pana (no git tag 1.0.0)'));
+          },
+        );
       });
 
       group('when a hybrid publishes to pub.dev too', () {

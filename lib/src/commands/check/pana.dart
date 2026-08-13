@@ -14,6 +14,7 @@ import 'package:gg_log/gg_log.dart';
 import 'package:gg_process/gg_process.dart';
 import 'package:gg_publish/gg_publish.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
+import 'package:gg_version/gg_version.dart';
 import 'package:mocktail/mocktail.dart' as mocktail;
 
 // #############################################################################
@@ -28,8 +29,12 @@ class Pana extends DirCommand<void> {
     required super.ggLog,
     this.processWrapper = const GgProcessWrapper(),
     PublishTo? publishTo,
+    PublishedVersion? publishedVersion,
+    FromGit? versionFromGit,
     bool? publishedOnly,
   }) : _publishTo = publishTo ?? PublishTo(ggLog: ggLog),
+       _publishedVersion = publishedVersion ?? PublishedVersion(ggLog: ggLog),
+       _versionFromGit = versionFromGit ?? FromGit(ggLog: ggLog),
        _publishedOnlyFromConstructor = publishedOnly,
        super(name: 'pana', description: 'Runs »dart run pana«.') {
     _addArgs();
@@ -76,6 +81,29 @@ class Pana extends DirCommand<void> {
       }
     }
 
+    // Pana scores the package against its released state: it resolves the
+    // `repository:` URL and expects to find the package on the default branch,
+    // at the version pub.dev serves. Before the first release neither exists —
+    // the feature branch was never merged, no tag was ever written — and pana
+    // fails with problems the package itself cannot fix. Two questions decide
+    // whether there is a released state to score against at all:
+    //
+    //   1. Does pub.dev already know a version of this package?
+    //   2. Does this repository carry a version tag for that version?
+    //
+    // Only when both are answered with yes has a full release cycle happened
+    // here. Anything else — a first publish, a repository whose tags never
+    // arrived — skips pana instead of failing the whole `can publish`.
+    final skipReason = await _missingReleaseHistory(directory, ggLog);
+    if (skipReason != null) {
+      GgStatusPrinter<void>(
+        ggLog: ggLog,
+        message: 'Skipping pana ($skipReason)',
+        dark: true,
+      ).logStatus(GgStatusPrinterStatus.success);
+      return;
+    }
+
     final statusPrinter = GgStatusPrinter<ProcessResult>(
       ggLog: ggLog,
       message: 'Running pana',
@@ -119,6 +147,39 @@ class Pana extends DirCommand<void> {
   // ######################
 
   final PublishTo _publishTo;
+  final PublishedVersion _publishedVersion;
+  final FromGit _versionFromGit;
+
+  // ...........................................................................
+  /// Returns why pana has no released state to score against, or null when it
+  /// has one. See the call site for why the two questions are asked.
+  Future<String?> _missingReleaseHistory(
+    Directory directory,
+    GgLog ggLog,
+  ) async {
+    final published = await _publishedVersion.latestVersionFor(
+      target: PublishTarget.pubDev,
+      directory: directory,
+      ggLog: ggLog,
+    );
+
+    if (published == null) {
+      return 'not on pub.dev yet';
+    }
+
+    // The tags of the whole repository, not only the ones on HEAD: the release
+    // was tagged on the default branch, and pana runs from a feature branch.
+    final tags = await _versionFromGit.allVersions(
+      directory: directory,
+      ggLog: ggLog,
+    );
+
+    if (!tags.contains(published)) {
+      return 'no git tag $published';
+    }
+
+    return null;
+  }
 
   // ...........................................................................
   String _details(List<String> messages, List<String> errors) => [

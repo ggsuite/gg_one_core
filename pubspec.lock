@@ -252,9 +252,10 @@ packages:
   gg_publish:
     dependency: "direct main"
     description:
-      path: "../gg_publish"
-      relative: true
-    source: path
+      name: gg_publish
+      sha256: "61d3b21de0761c36d497a1022b430d910c242a4a2ecd0ca50965602f84c01be5"
+      url: "https://pub.dev"
+    source: hosted
     version: "4.3.3"
   gg_status_printer:
     dependency: "direct main"

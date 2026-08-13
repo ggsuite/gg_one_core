@@ -18,7 +18,7 @@ dependencies:
   gg_lang: ^0.5.1
   gg_log: ^1.0.7
   gg_process: ^1.1.7
-  gg_publish: ^4.3.2
+  gg_publish: ^4.3.3
   gg_status_printer: ^1.4.3
   gg_test: ^3.1.1
   gg_version: ^5.2.2

@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -40,9 +40,8 @@ void main() {
   /// The version the package has on pub.dev in the default setup.
   final released = Version(1, 0, 0);
 
-  final successReport = File(
-    'test/data/pana_success_report.json',
-  ).readAsStringSync();
+  final successReport = File('test/data/pana_success_report.json')
+      .readAsStringSync();
 
   final versionMissedReport = File(
     'test/data/pana_version_in_changelog_missing.json',
@@ -61,9 +60,8 @@ void main() {
       response += 'pana 0.22.2';
     }
 
-    when(
-      () => processWrapper.run('dart', ['pub', 'global', 'list']),
-    ).thenAnswer((_) async => ProcessResult(0, exitCode, response, stderr));
+    when(() => processWrapper.run('dart', ['pub', 'global', 'list']))
+        .thenAnswer((_) async => ProcessResult(0, exitCode, response, stderr));
   }
 
   // ...........................................................................
@@ -158,6 +156,11 @@ void main() {
   // ...........................................................................
   group('Pana', () {
     // .........................................................................
+    test('can be created without injected dependencies', () {
+      expect(Pana(ggLog: ggLog), isNotNull);
+    });
+
+    // .........................................................................
     group('should throw an Exception', () {
       test('when pana returns invalid JSON', () async {
         // Mock process returning invalid JSON
@@ -228,9 +231,8 @@ void main() {
       group('when package is not published to pub.dev', () {
         test('and publishedOnly is set to true', () async {
           // Add publish_to: none
-          await File(
-            join(d.path, 'pubspec.yaml'),
-          ).writeAsString('publish_to: none');
+          await File(join(d.path, 'pubspec.yaml'))
+              .writeAsString('publish_to: none');
 
           // Run pana
           await runner.run(['pana', '--input', d.path, '--published-only']);
@@ -242,12 +244,10 @@ void main() {
 
         test('for an npm-only hybrid', () async {
           // publish_to: none on the Dart side, public on npm.
-          await File(
-            join(d.path, 'pubspec.yaml'),
-          ).writeAsString('name: x\nversion: 1.0.0\npublish_to: none\n');
-          await File(
-            join(d.path, 'package.json'),
-          ).writeAsString('{"name": "@org/x", "version": "1.0.0"}');
+          await File(join(d.path, 'pubspec.yaml'))
+              .writeAsString('name: x\nversion: 1.0.0\npublish_to: none\n');
+          await File(join(d.path, 'package.json'))
+              .writeAsString('{"name": "@org/x", "version": "1.0.0"}');
 
           await runner.run(['pana', '--input', d.path, '--published-only']);
 
@@ -307,12 +307,10 @@ void main() {
           // A package.json next to the pubspec does not take the package off
           // pub.dev — before this, the single publish target of a hybrid read
           // »npm« and pana was skipped for it.
-          await File(
-            join(d.path, 'pubspec.yaml'),
-          ).writeAsString('name: x\nversion: 1.0.0\n');
-          await File(
-            join(d.path, 'package.json'),
-          ).writeAsString('{"name": "@org/x", "version": "1.0.0"}');
+          await File(join(d.path, 'pubspec.yaml'))
+              .writeAsString('name: x\nversion: 1.0.0\n');
+          await File(join(d.path, 'package.json'))
+              .writeAsString('{"name": "@org/x", "version": "1.0.0"}');
           mockPanaResult(successReport);
 
           await runner.run(['pana', '--input', d.path, '--published-only']);
@@ -339,9 +337,8 @@ void main() {
     group('should fail ', () {
       test('when 140 pubpoints are not reached', () async {
         // Mock an success report
-        final notSuccessReport = File(
-          'test/data/pana_not_success_report.json',
-        ).readAsStringSync();
+        final notSuccessReport = File('test/data/pana_not_success_report.json')
+            .readAsStringSync();
         mockPanaResult(notSuccessReport);
 
         // Run pana

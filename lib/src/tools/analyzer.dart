@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -106,9 +106,9 @@ class TypeScriptAnalyzer extends Analyzer {
   /// Constructor.
   const TypeScriptAnalyzer({
     this.processWrapper = const GgProcessWrapper(),
-    TypeScriptPackageManager Function(Directory)? packageManager,
+    this._packageManager,
     this.catalog,
-  }) : _packageManager = packageManager;
+  });
 
   /// Example instance for tests — uses the real default process wrapper and
   /// package-manager detection.

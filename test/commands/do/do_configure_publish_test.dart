@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2025 Göran Hegenberg. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -92,13 +92,11 @@ void main() {
     test(
       'writes increment + message and gitignores the runtime file',
       () async {
-        File(
-          join(d.path, 'ticket.json'),
-        ).writeAsStringSync('{"description": "Ticket desc"}');
+        File(join(d.path, 'ticket.json'))
+            .writeAsStringSync('{"description": "Ticket desc"}');
 
-        final config = await makeCommand(
-          increments: [1],
-        ).configure(directory: d, ggLog: ggLog);
+        final config = await makeCommand(increments: [1])
+            .configure(directory: d, ggLog: ggLog);
 
         expect(config.config.versionIncrement, VersionIncrement.minor);
         expect(config.config.mergeMessage, 'Ticket desc');
@@ -202,13 +200,11 @@ void main() {
     });
 
     test('an empty edit falls back to the ticket description', () async {
-      File(
-        join(d.path, 'ticket.json'),
-      ).writeAsStringSync('{"description": "Ticket desc"}');
+      File(join(d.path, 'ticket.json'))
+          .writeAsStringSync('{"description": "Ticket desc"}');
 
-      final config = await makeCommand(
-        editMessage: (_) async => '   ',
-      ).configure(directory: d, ggLog: ggLog);
+      final config = await makeCommand(editMessage: (_) async => '   ')
+          .configure(directory: d, ggLog: ggLog);
 
       expect(config.config.mergeMessage, 'Ticket desc');
     });
@@ -216,9 +212,8 @@ void main() {
     test(
       'an empty edit without ticket.json falls back to Publish <dir>',
       () async {
-        final config = await makeCommand(
-          editMessage: (_) async => '',
-        ).configure(directory: d, ggLog: ggLog);
+        final config = await makeCommand(editMessage: (_) async => '')
+            .configure(directory: d, ggLog: ggLog);
 
         expect(config.config.mergeMessage, 'Publish ${basename(d.path)}');
       },
@@ -238,9 +233,8 @@ void main() {
       });
 
       test('empty when the description is blank', () async {
-        File(
-          join(d.path, 'ticket.json'),
-        ).writeAsStringSync('{"description": "   "}');
+        File(join(d.path, 'ticket.json'))
+            .writeAsStringSync('{"description": "   "}');
         await makeCommand().configure(directory: d, ggLog: ggLog);
         expect(capturedInitials, ['']);
       });
@@ -249,22 +243,19 @@ void main() {
     group('version preview baseline', () {
       test('uses the pubspec version when readable', () async {
         final adapter = _StubAdapter([0]);
-        await makeCommand(
-          adapter: adapter,
-        ).configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
+        await makeCommand(adapter: adapter)
+            .configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
         expect(adapter.capturedOptions.first.first, contains('1.2.3'));
       });
 
       test('falls back to package.json for TypeScript repos', () async {
         File(join(d.path, 'pubspec.yaml')).deleteSync();
-        File(
-          join(d.path, 'package.json'),
-        ).writeAsStringSync('{"name": "x", "version": "2.5.0"}');
+        File(join(d.path, 'package.json'))
+            .writeAsStringSync('{"name": "x", "version": "2.5.0"}');
 
         final adapter = _StubAdapter([0]);
-        await makeCommand(
-          adapter: adapter,
-        ).configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
+        await makeCommand(adapter: adapter)
+            .configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
         expect(adapter.capturedOptions.first.first, contains('2.5.0'));
       });
 
@@ -272,9 +263,8 @@ void main() {
         File(join(d.path, 'pubspec.yaml')).deleteSync();
 
         final adapter = _StubAdapter([0]);
-        await makeCommand(
-          adapter: adapter,
-        ).configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
+        await makeCommand(adapter: adapter)
+            .configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
         expect(adapter.capturedOptions.first.first, contains('0.0.0'));
       });
 
@@ -286,9 +276,8 @@ void main() {
           await addTags(d, ['3.1.4']);
 
           final adapter = _StubAdapter([0]);
-          await makeCommand(
-            adapter: adapter,
-          ).configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
+          await makeCommand(adapter: adapter)
+              .configure(directory: d, ggLog: ggLog, mergeMessage: 'msg');
           expect(adapter.capturedOptions.first.first, contains('3.1.4'));
         },
       );
@@ -323,12 +312,10 @@ void main() {
       test('legacyPublishConfigFile keeps the unhidden file when both '
           'exist', () {
         final ggDir = Directory(join(d.path, '.gg'))..createSync();
-        File(
-          join(ggDir.path, '.gg-publish.json'),
-        ).writeAsStringSync('{"merge_message":"legacy"}');
-        File(
-          join(ggDir.path, 'gg-publish.json'),
-        ).writeAsStringSync('{"merge_message":"current"}');
+        File(join(ggDir.path, '.gg-publish.json'))
+            .writeAsStringSync('{"merge_message":"legacy"}');
+        File(join(ggDir.path, 'gg-publish.json'))
+            .writeAsStringSync('{"merge_message":"current"}');
 
         expect(
           legacyPublishConfigFile(d).readAsStringSync(),
@@ -395,9 +382,8 @@ void main() {
         );
 
       final adapter = _StubAdapter([2]);
-      final config = await makeCommand(
-        adapter: adapter,
-      ).configure(directory: d, ggLog: ggLog);
+      final config = await makeCommand(adapter: adapter)
+          .configure(directory: d, ggLog: ggLog);
 
       // The prompt ran again — with the recorded answers pre-selected.
       expect(adapter.capturedInitialIndices, [2]);

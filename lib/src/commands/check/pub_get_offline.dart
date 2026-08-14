@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -23,9 +23,8 @@ class PubGetOffline extends DirCommand<void> {
   /// Constructor.
   PubGetOffline({
     required super.ggLog,
-    GgProcessWrapper processWrapper = const GgProcessWrapper(),
-  }) : _processWrapper = processWrapper,
-       super(
+    this._processWrapper = const GgProcessWrapper(),
+  }) : super(
          name: 'pub-get-offline',
          description: 'Sync the lock file with the manifest, offline',
        );

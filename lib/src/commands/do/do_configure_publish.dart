@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2025 Göran Hegenberg. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -211,9 +211,8 @@ class DoConfigurePublish extends DirCommand<void> {
         );
       } catch (_) {
         try {
-          final latest = await FromGit(
-            ggLog: <String>[].add,
-          ).latest(ggLog: <String>[].add, directory: directory);
+          final latest = await FromGit(ggLog: <String>[].add)
+              .latest(ggLog: <String>[].add, directory: directory);
           return latest ?? Version(0, 0, 0);
         } catch (_) {
           // Defensive: configure always runs inside a git repo, so the tag

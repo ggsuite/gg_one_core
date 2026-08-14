@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2024 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -114,9 +114,8 @@ class TypeScriptFormatter extends Formatter {
   const TypeScriptFormatter({
     this.processWrapper = const GgProcessWrapper(),
     bool Function()? isGitHub,
-    TypeScriptPackageManager Function(Directory)? packageManager,
-  }) : _isGitHubImpl = isGitHub,
-       _packageManager = packageManager;
+    this._packageManager,
+  }) : _isGitHubImpl = isGitHub;
 
   /// Example instance for tests — uses the real default process wrapper and
   /// package-manager detection.

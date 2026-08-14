@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2026 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -54,9 +54,8 @@ void main() {
     });
 
     test('fills the missing half when only one new file exists', () async {
-      await RepoPublishConfig(
-        mergeMessage: 'New',
-      ).save(file: repoPublishConfigFile(d));
+      await RepoPublishConfig(mergeMessage: 'New')
+          .save(file: repoPublishConfigFile(d));
 
       final files = loadRepoPublishFiles(d);
       expect(files.config.mergeMessage, 'New');
@@ -126,9 +125,8 @@ void main() {
 
     test('the new files win over a legacy one', () async {
       writeLegacy('{"merge_message":"Legacy"}');
-      await RepoPublishConfig(
-        mergeMessage: 'New',
-      ).save(file: repoPublishConfigFile(d));
+      await RepoPublishConfig(mergeMessage: 'New')
+          .save(file: repoPublishConfigFile(d));
 
       expect(loadRepoPublishFiles(d).config.mergeMessage, 'New');
     });

@@ -1,5 +1,5 @@
 // @license
-// Copyright (c) 2019 - 2026 Dr. Gabriel Gatzsche. All Rights Reserved.
+// Copyright (c) ggsuite
 //
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
@@ -478,13 +478,11 @@ void main() {
             fileName: 'pubspec.yaml',
             content: 'dependencies:\n  gg_git: ^4.0.0\n',
           );
-          await GgState(
-            ggLog: messages.add,
-          ).writeSuccess(directory: d, key: GgState.doCommitKey);
+          await GgState(ggLog: messages.add)
+              .writeSuccess(directory: d, key: GgState.doCommitKey);
 
-          await File(
-            '${d.path}/pubspec.yaml',
-          ).writeAsString('dependencies:\n  gg_git: ^4.1.0\n');
+          await File('${d.path}/pubspec.yaml')
+              .writeAsString('dependencies:\n  gg_git: ^4.1.0\n');
         });
 
         test('the recorded state goes stale without a stateKey', () async {

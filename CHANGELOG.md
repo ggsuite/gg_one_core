@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0 - 2026-08-14
+
+### Fixed
+
+- Cleanup copy right headers. Update to dart 3.13. Auto fixes.
+- Cleanup copy right headers. Update to dart 3.13. Auto fixes. Setup quick-check pipeline.
+
 ## 2.4.2 - 2026-08-13
 
 ### Changed

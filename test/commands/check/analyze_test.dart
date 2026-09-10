@@ -92,7 +92,8 @@ void main() {
 
         test('when the injected typescript analyzer throws', () async {
           final tsDir = Directory.systemTemp.createTempSync();
-          File('${tsDir.path}/package.json').writeAsStringSync('{}');
+          File('${tsDir.path}/package.json')
+              .writeAsStringSync('{"name":"foo"}');
           File('${tsDir.path}/tsconfig.json').writeAsStringSync('{}');
           final mockAnalyzer = MockAnalyzer();
           when(
@@ -191,7 +192,8 @@ void main() {
           // A bridge repo ships pubspec.yaml AND package.json + tsconfig.json.
           final bridgeDir = Directory.systemTemp.createTempSync();
           File('${bridgeDir.path}/pubspec.yaml').writeAsStringSync('name: b\n');
-          File('${bridgeDir.path}/package.json').writeAsStringSync('{}');
+          File('${bridgeDir.path}/package.json')
+              .writeAsStringSync('{"name":"foo"}');
           File('${bridgeDir.path}/tsconfig.json').writeAsStringSync('{}');
 
           final dartAnalyzer = MockAnalyzer();
@@ -228,6 +230,52 @@ void main() {
             );
           } finally {
             bridgeDir.deleteSync(recursive: true);
+          }
+        });
+
+        test('dispatches a Dart repo next to a nameless package.json to the '
+            'dart analyzer', () async {
+          // A package.json without a name is no npm manifest, so the repo
+          // is no bridge: it is analyzed as Dart, not as TypeScript.
+          final dartDir = Directory.systemTemp.createTempSync();
+          File('${dartDir.path}/pubspec.yaml').writeAsStringSync('name: b\n');
+          File('${dartDir.path}/package.json').writeAsStringSync('{}');
+          File('${dartDir.path}/tsconfig.json').writeAsStringSync('{}');
+
+          final dartAnalyzer = MockAnalyzer();
+          final tsAnalyzer = MockAnalyzer();
+          when(
+            () => dartAnalyzer.run(
+              directory: any(named: 'directory'),
+              ggLog: any(named: 'ggLog'),
+            ),
+          ).thenAnswer((_) async {});
+
+          final localRunner = CommandRunner<void>('test', 'test');
+          localRunner.addCommand(
+            Analyze(
+              ggLog: messages.add,
+              dartAnalyzer: dartAnalyzer,
+              typeScriptAnalyzer: tsAnalyzer,
+            ),
+          );
+
+          try {
+            await localRunner.run(['analyze', '--input', dartDir.path]);
+            verify(
+              () => dartAnalyzer.run(
+                directory: any(named: 'directory'),
+                ggLog: any(named: 'ggLog'),
+              ),
+            ).called(1);
+            verifyNever(
+              () => tsAnalyzer.run(
+                directory: any(named: 'directory'),
+                ggLog: any(named: 'ggLog'),
+              ),
+            );
+          } finally {
+            dartDir.deleteSync(recursive: true);
           }
         });
 

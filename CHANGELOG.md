@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.0 - 2026-09-11
+
+### Added
+
+- `Checks` runs `NoFutureVersions`: a `CHANGELOG.md` section above the manifest version fails the checks
+
 ## 2.6.1 - 2026-09-09
 
 ## 2.6.0 - 2026-09-02

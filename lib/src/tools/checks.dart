@@ -37,6 +37,7 @@ class Checks {
     IsPushed? isPushed,
     IsCommitted? isCommitted,
     IsVersioned? isVersioned,
+    NoFutureVersions? noFutureVersions,
     IsPublished? isPublished,
     IsUpgraded? isUpgraded,
   }) : pubGetOffline = pubGetOffline ?? PubGetOffline(ggLog: ggLog),
@@ -53,6 +54,7 @@ class Checks {
        isPushed = isPushed ?? IsPushed(ggLog: ggLog),
        isCommitted = isCommitted ?? IsCommitted(ggLog: ggLog),
        isVersioned = isVersioned ?? IsVersioned(ggLog: ggLog),
+       noFutureVersions = noFutureVersions ?? NoFutureVersions(ggLog: ggLog),
        isPublished = isPublished ?? IsPublished(ggLog: ggLog),
        isUpgraded = isUpgraded ?? IsUpgraded(ggLog: ggLog) {
     _initAll();
@@ -97,6 +99,10 @@ class Checks {
   /// The isVersioned command
   final IsVersioned isVersioned;
 
+  /// The no-future-versions check: CHANGELOG.md has no version above the
+  /// manifest
+  final NoFutureVersions noFutureVersions;
+
   /// The isPublished command
   final IsPublished isPublished;
 
@@ -123,6 +129,7 @@ class Checks {
       isPushed,
       isCommitted,
       isVersioned,
+      noFutureVersions,
       isPublished,
       isUpgraded,
     ];

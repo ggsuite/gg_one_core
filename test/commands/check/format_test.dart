@@ -87,7 +87,8 @@ void main() {
 
         test('when the injected typescript formatter throws', () async {
           final tsDir = Directory.systemTemp.createTempSync();
-          File('${tsDir.path}/package.json').writeAsStringSync('{}');
+          File('${tsDir.path}/package.json')
+              .writeAsStringSync('{"name":"foo"}');
           File('${tsDir.path}/tsconfig.json').writeAsStringSync('{}');
           final mockFormatter = MockFormatter();
           when(
@@ -235,7 +236,8 @@ void main() {
           // A bridge repo ships pubspec.yaml AND package.json + tsconfig.json.
           final bridgeDir = Directory.systemTemp.createTempSync();
           File('${bridgeDir.path}/pubspec.yaml').writeAsStringSync('name: b\n');
-          File('${bridgeDir.path}/package.json').writeAsStringSync('{}');
+          File('${bridgeDir.path}/package.json')
+              .writeAsStringSync('{"name":"foo"}');
           File('${bridgeDir.path}/tsconfig.json').writeAsStringSync('{}');
 
           final dartFormatter = MockFormatter();
@@ -274,6 +276,54 @@ void main() {
             bridgeDir.deleteSync(recursive: true);
           }
         });
+
+        test(
+          'a Dart repo next to a nameless package.json to the dart formatter',
+          () async {
+            // A package.json without a name is no npm manifest, so the repo
+            // is no bridge: it is formatted as Dart, not as TypeScript.
+            final dartDir = Directory.systemTemp.createTempSync();
+            File('${dartDir.path}/pubspec.yaml').writeAsStringSync('name: b\n');
+            File('${dartDir.path}/package.json').writeAsStringSync('{}');
+            File('${dartDir.path}/tsconfig.json').writeAsStringSync('{}');
+
+            final dartFormatter = MockFormatter();
+            final tsFormatter = MockFormatter();
+            when(
+              () => dartFormatter.run(
+                directory: any(named: 'directory'),
+                ggLog: any(named: 'ggLog'),
+              ),
+            ).thenAnswer((_) async {});
+
+            final localRunner = CommandRunner<void>('test', 'test');
+            localRunner.addCommand(
+              Format(
+                ggLog: ggLog,
+                dartFormatter: dartFormatter,
+                typeScriptFormatter: tsFormatter,
+              ),
+            );
+
+            try {
+              await localRunner.run(['format', '--input', dartDir.path]);
+              verify(
+                () => dartFormatter.run(
+                  directory: any(named: 'directory'),
+                  ggLog: any(named: 'ggLog'),
+                ),
+              ).called(1);
+              verifyNever(
+                () => tsFormatter.run(
+                  directory: any(named: 'directory'),
+                  ggLog: any(named: 'ggLog'),
+                ),
+              );
+            } finally {
+              dartDir.deleteSync(recursive: true);
+            }
+          },
+        );
       });
     });
   });

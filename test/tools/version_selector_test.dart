@@ -93,6 +93,24 @@ void main() {
       expect(capturedOptions[2], 'Major (1.2.3 -> 2.0.0)');
     });
 
+    test('asks an uncolored question — the prompt theme colors it', () async {
+      late String capturedMessage;
+
+      when(
+        () => adapter.choose(
+          message: any(named: 'message'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((invocation) async {
+        capturedMessage = invocation.namedArguments[#message] as String;
+        return 0;
+      });
+
+      await selector.selectIncrement(currentVersion: Version(1, 2, 3));
+
+      expect(capturedMessage, 'Select version increment:');
+    });
+
     group('preselect', () {
       Future<int> initialIndexFor(VersionIncrement? preselect) async {
         late int captured;

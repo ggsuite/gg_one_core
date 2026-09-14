@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Color prompts yellow, cursor gray, pick blue, others white
+
 ## 2.7.0 - 2026-09-11
 
 ### Added

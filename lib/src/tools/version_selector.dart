@@ -4,7 +4,6 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
-import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_publish/gg_publish.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -87,7 +86,8 @@ class VersionSelector {
     ];
 
     final index = await _adapter.choose(
-      message: cAction('Select version increment:'),
+      // Uncolored: the prompt theme colors the question.
+      message: 'Select version increment:',
       options: options,
       initialIndex: preselect == null ? 0 : _indexOf(preselect),
     );

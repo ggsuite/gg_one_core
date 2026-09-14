@@ -59,7 +59,7 @@ void main() {
       final question = promptTheme.messageStyle(
         '\n${cH1('What should happen to the ticket when ready?')}',
       );
-      expect(sgrCodes(question), {'33', '0'});
+      expect(sgrCodes(question), {'33', '22', '0'});
       expect(
         rmConsoleColors(question),
         '\nWhat should happen to the ticket when ready?',
@@ -68,8 +68,12 @@ void main() {
       final option =
           '${cAction('Remove it manually with ')}'
           '${cCmd('»gg do rm ticket 1«')}';
-      expect(sgrCodes(promptTheme.activeItemStyle(option)), {'34', '0'});
-      expect(sgrCodes(promptTheme.inactiveItemStyle(option)), {'37', '0'});
+      expect(sgrCodes(promptTheme.activeItemStyle(option)), {'34', '22', '0'});
+      expect(sgrCodes(promptTheme.inactiveItemStyle(option)), {
+        '37',
+        '22',
+        '0',
+      });
       expect(
         rmConsoleColors(promptTheme.inactiveItemStyle(option)),
         'Remove it manually with »gg do rm ticket 1«',
@@ -79,19 +83,34 @@ void main() {
       const exotic =
           '\x1B[92ma\x1B[0m\x1B[38;5;196mb\x1B[0m'
           '\x1B[48;2;1;2;3mc\x1B[0m\x1B[104md\x1B[0m';
-      expect(sgrCodes(promptTheme.inactiveItemStyle(exotic)), {'37', '0'});
+      expect(sgrCodes(promptTheme.inactiveItemStyle(exotic)), {
+        '37',
+        '22',
+        '0',
+      });
     });
 
     test('keeps bold, which emphasizes a part of an option', () {
       final option = 'Remove it manually with ${bold('»gg do rm ticket 1«')}';
 
-      final active = promptTheme.activeItemStyle(option);
-      expect(sgrCodes(active), {'34', '1', '0'});
-      expect(active, startsWith('\x1B[34mRemove it manually with \x1B[1m'));
+      expect(
+        promptTheme.activeItemStyle(option),
+        '\x1B[34mRemove it manually with '
+        '\x1B[1m»gg do rm ticket 1«\x1B[22m\x1B[0m',
+      );
+      expect(
+        promptTheme.inactiveItemStyle(option),
+        '\x1B[37mRemove it manually with '
+        '\x1B[1m»gg do rm ticket 1«\x1B[22m\x1B[0m',
+      );
+    });
 
-      final inactive = promptTheme.inactiveItemStyle(option);
-      expect(sgrCodes(inactive), {'37', '1', '0'});
-      expect(inactive, startsWith('\x1B[37mRemove it manually with \x1B[1m'));
+    test('ends bold without ending the color of the option', () {
+      // Bold in the middle: the text after it is neither bold nor uncolored.
+      expect(
+        promptTheme.inactiveItemStyle('Run ${bold('gg do push')} first'),
+        '\x1B[37mRun \x1B[1mgg do push\x1B[22m first\x1B[0m',
+      );
     });
   });
 

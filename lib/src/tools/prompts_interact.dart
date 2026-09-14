@@ -24,8 +24,16 @@ final RegExp _colorSequence = RegExp(
   r'\x1B\[(?:3[0-9]|4[0-9]|9[0-7]|10[0-7])(?:;[0-9]+)*m',
 );
 
-/// Removes the colors from [text] and keeps every other text attribute.
-String _uncolored(String text) => text.replaceAll(_colorSequence, '');
+/// Matches the SGR sequence resetting every attribute.
+final RegExp _resetSequence = RegExp(r'\x1B\[0m');
+
+/// Removes the colors from [text] and keeps bold.
+///
+/// A reset inside [text] becomes »normal intensity«: it ends a bold part but
+/// leaves the color of the theme on, so the rest of the text neither loses
+/// its color nor stays bold.
+String _uncolored(String text) =>
+    text.replaceAll(_colorSequence, '').replaceAll(_resetSequence, '\x1B[22m');
 
 /// The theme of every gg prompt: the question is yellow, the cursor dark
 /// gray, the option under it — and the answer picked — blue, every other

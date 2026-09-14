@@ -4,6 +4,7 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
+import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_one_core/gg_one_core.dart';
 import 'package:gg_publish/gg_publish.dart';
 import 'package:mocktail/mocktail.dart';
@@ -18,9 +19,14 @@ void main() {
     late VersionSelector selector;
 
     setUp(() {
+      // Colors on, so a colored question would show in the comparisons —
+      // with NO_COLOR a color function returns the plain text.
+      ggColorsEnabled = true;
       adapter = _MockInteractAdapter();
       selector = VersionSelector(adapter: adapter);
     });
+
+    tearDown(() => ggColorsEnabled = null);
 
     test('returns patch / minor / major based on user selection', () async {
       final current = Version(1, 2, 3);
@@ -91,6 +97,24 @@ void main() {
       expect(capturedOptions[0], 'Patch (1.2.3 -> 1.2.4)');
       expect(capturedOptions[1], 'Minor (1.2.3 -> 1.3.0)');
       expect(capturedOptions[2], 'Major (1.2.3 -> 2.0.0)');
+    });
+
+    test('asks an uncolored question — the prompt theme colors it', () async {
+      late String capturedMessage;
+
+      when(
+        () => adapter.choose(
+          message: any(named: 'message'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((invocation) async {
+        capturedMessage = invocation.namedArguments[#message] as String;
+        return 0;
+      });
+
+      await selector.selectIncrement(currentVersion: Version(1, 2, 3));
+
+      expect(capturedMessage, 'Select version increment:');
     });
 
     group('preselect', () {

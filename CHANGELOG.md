@@ -4,7 +4,9 @@
 
 ### Changed
 
-- Color prompts yellow, cursor gray, pick blue, others white
+- Select prompts show the question in yellow, the cursor in dark gray, the option under it in blue and every other option in white; `input` prompts use the same theme
+- The prompt theme removes the colors a caller puts into a question or an option and keeps bold, italic and underline
+- `VersionSelector` passes its question without colors
 
 ## 2.7.0 - 2026-09-11
 

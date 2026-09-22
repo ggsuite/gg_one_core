@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.1 - 2026-09-22
+
+### Changed
+
+- "Quiet
+- "Tighten
+
 ## 2.8.0 - 2026-09-14
 
 ### Changed

@@ -37,16 +37,16 @@ import 'package:mocktail/mocktail.dart' as mocktail;
 /// `whoami` (common for private feeds) and the check skips instead of
 /// false-failing — the auth is verified for real at publish time.
 ///
-/// It runs in the package's own directory, and the failure names that
-/// directory, because the package manager is resolved per directory: a
-/// `packageManager` field in `package.json` makes corepack serve that exact
-/// version instead of the globally installed one, and the major versions do
-/// not share a credential store (pnpm 11 keeps its own auth file and prefers
-/// it over `~/.npmrc`). A `<pm> login` run from somewhere else can therefore
-/// succeed while this package stays unauthenticated — which is what the
-/// message has to steer the user away from. It closes with
-/// `corepack prepare <pm>@latest --activate`, which lifts the globally
-/// installed version onto the pinned one so the two stores stop diverging.
+/// It runs in the package's own directory, and a failure **measures** why:
+/// a `packageManager` field in `package.json` makes that exact version serve
+/// the package while a shell anywhere else starts the globally installed one,
+/// and the major versions do not share a credential store. So the failure
+/// asks the package manager for its version here and in a directory that
+/// pins nothing, and when the two majors differ it says so with both
+/// numbers — plus, when plain `npm` *is* authenticated, where the token
+/// actually went. A `<pm> login` that reported success while this check
+/// keeps failing has no other explanation, and an error that names it is one
+/// the user can act on instead of retrying unchanged.
 ///
 /// The check applies to every package that publishes to npm — including a
 /// hybrid, whose `pubspec.yaml` does not exempt it from needing npm
@@ -130,19 +130,15 @@ class NpmLoggedIn extends DirCommand<void> {
     // feeds). Only fail hard on a clear auth problem; otherwise skip.
     if (_looksLikeAuthFailure(detail)) {
       statusPrinter.logStatus(GgStatusPrinterStatus.error);
-      final loginRegistry = registry == null ? '' : ' --registry=$registry';
       throw Exception(
         cError(
-          'Not logged in to $registryLabel '
-          '(${pm.executable} whoami failed: $detail). '
-          'Run "${pm.executable} login$loginRegistry" in ${directory.path} — '
-          'there and not somewhere else: a "packageManager" field in '
-          'package.json makes corepack serve a different ${pm.executable} '
-          'version per directory, and the major versions do not share a '
-          'credential store. If the login does not take effect, run '
-          '"corepack prepare ${pm.executable}@latest --activate" to bring the '
-          'global ${pm.executable} to the same major version, then log in '
-          'again.',
+          await _notLoggedInMessage(
+            directory: directory,
+            pm: pm,
+            registry: registry,
+            registryLabel: registryLabel,
+            detail: detail,
+          ),
         ),
       );
     }
@@ -165,6 +161,134 @@ class NpmLoggedIn extends DirCommand<void> {
 
   final PublishTo _publishTo;
   final NpmRegistryResolver _registryResolver;
+
+  // ...........................................................................
+  /// Builds the »not logged in« message for [registryLabel], naming the cause
+  /// when the package manager is split across two major versions.
+  ///
+  /// A `packageManager` field in `package.json` makes the package manager
+  /// serve exactly that version inside the package, while a shell anywhere
+  /// else starts the globally installed one. The majors do **not** share a
+  /// credential store, so a login that reported success can be invisible
+  /// here — which is what »I did log in« means when this check still fails.
+  /// Saying so, with both version numbers, is the difference between an
+  /// error the user can act on and one they retry unchanged.
+  Future<String> _notLoggedInMessage({
+    required Directory directory,
+    required TypeScriptPackageManager pm,
+    required String? registry,
+    required String registryLabel,
+    required String detail,
+  }) async {
+    final loginRegistry = registry == null ? '' : ' --registry=$registry';
+    final login = '"${pm.executable} login$loginRegistry"';
+
+    final buffer = StringBuffer(
+      'Not logged in to $registryLabel '
+      '(${pm.executable} whoami failed: $detail). ',
+    );
+
+    final here = await _versionOf(pm, directory.path);
+    final elsewhere = await _versionOf(pm, _neutralDirectory);
+    final split =
+        here != null && elsewhere != null && _major(here) != _major(elsewhere);
+
+    if (!split) {
+      buffer.write(
+        'Run $login in ${directory.path} — there and not somewhere else: a '
+        '"packageManager" field in package.json makes a different '
+        '${pm.executable} version serve each directory, and the major '
+        'versions do not share a credential store.',
+      );
+      return buffer.toString();
+    }
+
+    buffer.write(
+      'In ${directory.path} ${pm.executable} $here runs, while a shell '
+      'anywhere else starts ${pm.executable} $elsewhere — that is a '
+      '"packageManager" field pinning the version per directory. The two '
+      'majors keep their credentials in different files, so a login run '
+      'outside this directory never reaches this check, however successful '
+      'it looked. ',
+    );
+
+    if (await _npmIsAuthenticated(directory: directory, registry: registry)) {
+      buffer.write(
+        'npm itself is authenticated for $registryLabel, which says where '
+        'the token went: it is in the npm configuration, and ${pm.executable} '
+        '$here does not read it. ',
+      );
+    }
+
+    buffer.write(
+      'Run $login in ${directory.path}, or lift the global ${pm.executable} '
+      'onto the pinned version with "corepack prepare ${pm.executable}@$here '
+      '--activate" and log in again.',
+    );
+
+    return buffer.toString();
+  }
+
+  /// A directory that carries no `package.json`, so a package manager started
+  /// in it reports the globally installed version rather than a pinned one.
+  static final String _neutralDirectory = Directory.systemTemp.path;
+
+  // ...........................................................................
+  /// The version [pm] reports in [workingDirectory], or null when it cannot
+  /// be determined.
+  ///
+  /// The output is searched for the version rather than trimmed: pnpm 11
+  /// delegates several commands to npm, whose deprecation warnings then share
+  /// the stream with the answer.
+  Future<String?> _versionOf(
+    TypeScriptPackageManager pm,
+    String workingDirectory,
+  ) async {
+    try {
+      final result = await processWrapper.run(
+        pm.executable,
+        const <String>['--version'],
+        workingDirectory: workingDirectory,
+        runInShell: true,
+      );
+      if (result.exitCode != 0) return null;
+
+      final match = _versionPattern.firstMatch('${result.stdout}');
+      return match?.group(0);
+    } on Object {
+      // A package manager that cannot be started tells us nothing about the
+      // login — fall back to the generic message.
+      return null;
+    }
+  }
+
+  /// Whether plain `npm` is authenticated for [registry].
+  ///
+  /// npm reads the npm configuration no matter which package manager the
+  /// package pins, so a yes here pinpoints the split: the credentials exist,
+  /// they are just not where the pinned package manager looks.
+  Future<bool> _npmIsAuthenticated({
+    required Directory directory,
+    required String? registry,
+  }) async {
+    try {
+      final result = await processWrapper.run(
+        'npm',
+        <String>['whoami', if (registry != null) '--registry=$registry'],
+        workingDirectory: directory.path,
+        runInShell: true,
+      );
+      return result.exitCode == 0;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Matches a semantic version anywhere in a command's output.
+  static final RegExp _versionPattern = RegExp(r'\d+\.\d+\.\d+');
+
+  /// The major of the version [version].
+  static String _major(String version) => version.split('.').first;
 
   // ...........................................................................
   /// Whether [detail] clearly indicates an authentication failure (as opposed

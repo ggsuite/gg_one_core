@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Diagnose the pnpm version split behind a failing npm login
+
 ## 2.8.1 - 2026-09-22
 
 ### Changed

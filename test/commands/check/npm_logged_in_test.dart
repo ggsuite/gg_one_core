@@ -77,6 +77,46 @@ void main() {
     ).thenAnswer((_) async => ProcessResult(0, exitCode, stdout, stderr));
   }
 
+  // Stubs »pnpm --version«: [here] inside the package (what the
+  // »packageManager« field pins), [elsewhere] in the neutral directory the
+  // check uses to read the globally installed version.
+  void stubVersions({String? here, String? elsewhere}) {
+    when(
+      () => processWrapper.run(
+        'pnpm',
+        ['--version'],
+        workingDirectory: d.path,
+        runInShell: true,
+      ),
+    ).thenAnswer(
+      (_) async => ProcessResult(0, here == null ? 1 : 0, here ?? '', ''),
+    );
+
+    when(
+      () => processWrapper.run(
+        'pnpm',
+        ['--version'],
+        workingDirectory: Directory.systemTemp.path,
+        runInShell: true,
+      ),
+    ).thenAnswer(
+      (_) async =>
+          ProcessResult(0, elsewhere == null ? 1 : 0, elsewhere ?? '', ''),
+    );
+  }
+
+  // Stubs whether plain »npm« is authenticated for [registry].
+  void stubNpmWhoami({String? registry, required int exitCode}) {
+    when(
+      () => processWrapper.run(
+        'npm',
+        <String>['whoami', if (registry != null) '--registry=$registry'],
+        workingDirectory: d.path,
+        runInShell: true,
+      ),
+    ).thenAnswer((_) async => ProcessResult(0, exitCode, '', ''));
+  }
+
   Future<void> run() => runner.run(['npm-logged-in', '--input', d.path]);
 
   setUp(() {
@@ -291,6 +331,98 @@ void main() {
     });
 
     group('auth outcomes', () {
+      group('names the package manager version split', () {
+        /// A 401 against npmjs.org, with pnpm 11 pinned in the package and
+        /// pnpm 10 installed globally - the split that makes a successful
+        /// »pnpm login« invisible to this check.
+        void stubSplit({int npmWhoamiExitCode = 1}) {
+          stubTargets({PublishTarget.npm});
+          writePackageJson('{"name": "x", "packageManager": "pnpm@11.5.3"}');
+          stubConfig('registry', value: 'https://registry.npmjs.org/');
+          stubWhoami(
+            registry: 'https://registry.npmjs.org/',
+            exitCode: 1,
+            stderr: '401 Unauthorized',
+          );
+          stubVersions(here: '11.5.3', elsewhere: '10.28.2');
+          stubNpmWhoami(
+            registry: 'https://registry.npmjs.org/',
+            exitCode: npmWhoamiExitCode,
+          );
+        }
+
+        Future<String> messageOf() async {
+          try {
+            await run();
+          } on Exception catch (e) {
+            return rmControls(e.toString());
+          }
+          fail('The check was expected to throw.');
+        }
+
+        test('with both versions and where to log in', () async {
+          stubSplit();
+
+          final message = await messageOf();
+
+          expect(message, contains('pnpm 11.5.3 runs'));
+          expect(message, contains('pnpm 10.28.2'));
+          expect(message, contains('packageManager'));
+          expect(message, contains('corepack prepare pnpm@11.5.3 --activate'));
+        });
+
+        test('and where the token went when npm can see it', () async {
+          // npm reads the npm configuration whatever the package pins - a
+          // yes there pinpoints the split instead of guessing at it.
+          stubSplit(npmWhoamiExitCode: 0);
+
+          expect(await messageOf(), contains('npm itself is authenticated'));
+        });
+
+        test(
+          'and stays quiet about npm when npm cannot see it either',
+          () async {
+            stubSplit();
+
+            expect(
+              await messageOf(),
+              isNot(contains('npm itself is authenticated')),
+            );
+          },
+        );
+
+        test('falls back to the generic hint without a split', () async {
+          stubTargets({PublishTarget.npm});
+          writePackageJson('{"name": "x"}');
+          stubConfig('registry', value: 'https://registry.npmjs.org/');
+          stubWhoami(
+            registry: 'https://registry.npmjs.org/',
+            exitCode: 1,
+            stderr: '401 Unauthorized',
+          );
+          stubVersions(here: '10.28.2', elsewhere: '10.28.2');
+
+          final message = await messageOf();
+
+          expect(message, isNot(contains('corepack prepare')));
+          expect(message, contains('do not share a credential store'));
+        });
+
+        test('falls back when a version cannot be read at all', () async {
+          stubTargets({PublishTarget.npm});
+          writePackageJson('{"name": "x"}');
+          stubConfig('registry', value: 'https://registry.npmjs.org/');
+          stubWhoami(
+            registry: 'https://registry.npmjs.org/',
+            exitCode: 1,
+            stderr: '401 Unauthorized',
+          );
+          stubVersions(here: null, elsewhere: '10.28.2');
+
+          expect(await messageOf(), isNot(contains('corepack prepare')));
+        });
+      });
+
       test(
         'throws for a clear auth failure (401), naming the registry',
         () async {
@@ -316,9 +448,7 @@ void main() {
                   // and every major version has its own credential store — a
                   // login run elsewhere does not reach this package.
                   contains('in ${d.path}'),
-                  // …and when it still does not, the two versions have to be
-                  // brought together instead.
-                  contains('corepack prepare pnpm@latest --activate'),
+                  contains('do not share a credential store'),
                 ),
               ),
             ),

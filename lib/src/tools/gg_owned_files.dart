@@ -73,13 +73,17 @@ const String ggDirName = '.gg';
 /// They ride along every version bump; without them here, every commit that
 /// bumps a version would look as if it had swallowed user work.
 ///
-/// Older gg versions named the TypeScript mirror test `.test.ts`. That name
-/// stays owned: historic commits carry it, and so does the commit that
-/// replaces it with the `.spec.ts` one.
+/// The TypeScript mirror test ends in `.test.ts` or `.spec.ts`, whichever the
+/// tests next to it use; older gg versions always used `.test.ts`.
+///
+/// A bridge keeps its TypeScript in `typescript/`, so its version file is
+/// `typescript/<slug>_version.ts` and its mirror test sits in
+/// `typescript/test/`.
 final List<RegExp> ggOwnedPathPatterns = <RegExp>[
   RegExp(r'(^|/)lib/src/[A-Za-z0-9_]+_version\.dart$'),
   RegExp(r'(^|/)test/[A-Za-z0-9_]+_version_test\.dart$'),
   RegExp(r'(^|/)src/[A-Za-z0-9_]+_version\.ts$'),
+  RegExp(r'(^|/)typescript/[A-Za-z0-9_]+_version\.ts$'),
   RegExp(r'(^|/)test/[A-Za-z0-9_]+_version\.spec\.ts$'),
   RegExp(r'(^|/)test/[A-Za-z0-9_]+_version\.test\.ts$'),
 ];

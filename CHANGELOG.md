@@ -5,6 +5,17 @@
 ### Changed
 
 - Keep the merge message and version increment for gg do publish --continue
+## 2.9.3 - 2026-09-30
+
+### Changed
+
+- Place generated TypeScript version files where hybrid packages keep their TypeScript, and skip them for hybrids without TypeScript
+
+## 2.9.2 - 2026-09-30
+
+### Changed
+
+- Name generated TypeScript version tests *.spec.ts instead of *.test.ts
 
 ## 2.9.1 - 2026-09-28
 

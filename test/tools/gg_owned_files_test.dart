@@ -41,6 +41,12 @@ void main() {
       expect(isGgOwnedPath('lib/src/gg_git_version.dart'), isTrue);
       expect(isGgOwnedPath('test/gg_git_version_test.dart'), isTrue);
       expect(isGgOwnedPath('src/base_dna_version.ts'), isTrue);
+      expect(isGgOwnedPath('test/base_dna_version.spec.ts'), isTrue);
+      // A bridge keeps its TypeScript in typescript/.
+      expect(isGgOwnedPath('typescript/ggwsm_version.ts'), isTrue);
+      expect(isGgOwnedPath('typescript/test/ggwsm_version.test.ts'), isTrue);
+      expect(isGgOwnedPath('typescript/runtime.ts'), isFalse);
+      // The name older gg versions used for the mirror test.
       expect(isGgOwnedPath('test/base_dna_version.test.ts'), isTrue);
       expect(isGgOwnedPath('packages/x/lib/src/foo_version.dart'), isTrue);
 
@@ -48,6 +54,7 @@ void main() {
       expect(isGgOwnedPath('lib/foo_version.dart'), isFalse);
       expect(isGgOwnedPath('lib/src/version.dart'), isFalse);
       expect(isGgOwnedPath('lib/src/foo_version_extra.dart'), isFalse);
+      expect(isGgOwnedPath('test/foo.spec.ts'), isFalse);
     });
 
     test('answers false for user files and undecidable paths', () {

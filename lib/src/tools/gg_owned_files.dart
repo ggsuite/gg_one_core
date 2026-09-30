@@ -69,13 +69,22 @@ const String ggDirName = '.gg';
 ///
 /// `gg_version`'s `WriteVersionFile` writes `lib/src/<slug>_version.dart` plus
 /// the mirror test `test/<slug>_version_test.dart` for Dart and Flutter, and
-/// `src/<slug>_version.ts` plus `test/<slug>_version.test.ts` for TypeScript.
+/// `src/<slug>_version.ts` plus `test/<slug>_version.spec.ts` for TypeScript.
 /// They ride along every version bump; without them here, every commit that
 /// bumps a version would look as if it had swallowed user work.
+///
+/// The TypeScript mirror test ends in `.test.ts` or `.spec.ts`, whichever the
+/// tests next to it use; older gg versions always used `.test.ts`.
+///
+/// A bridge keeps its TypeScript in `typescript/`, so its version file is
+/// `typescript/<slug>_version.ts` and its mirror test sits in
+/// `typescript/test/`.
 final List<RegExp> ggOwnedPathPatterns = <RegExp>[
   RegExp(r'(^|/)lib/src/[A-Za-z0-9_]+_version\.dart$'),
   RegExp(r'(^|/)test/[A-Za-z0-9_]+_version_test\.dart$'),
   RegExp(r'(^|/)src/[A-Za-z0-9_]+_version\.ts$'),
+  RegExp(r'(^|/)typescript/[A-Za-z0-9_]+_version\.ts$'),
+  RegExp(r'(^|/)test/[A-Za-z0-9_]+_version\.spec\.ts$'),
   RegExp(r'(^|/)test/[A-Za-z0-9_]+_version\.test\.ts$'),
 ];
 

@@ -365,10 +365,10 @@ packages:
     dependency: "direct main"
     description:
       name: gg_version
-      sha256: "38e646235a3f25eeedbddd93c1941c2813f92950bd666c18307547376e39b383"
+      sha256: "0e7534ddb4dfb1fb54861da02e0d2c39a36e3c8a08ff2a32c4c60d2fbf3b72f6"
       url: "https://pub.dev"
     source: hosted
-    version: "5.6.0"
+    version: "5.7.0"
   glob:
     dependency: transitive
     description:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.2 - 2026-09-30
+
+### Changed
+
+- Name generated TypeScript version tests *.spec.ts instead of *.test.ts
+
 ## 2.9.1 - 2026-09-28
 
 ## 2.9.0 - 2026-09-23

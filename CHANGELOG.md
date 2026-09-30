@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.10.0 - 2026-09-30
 
 ### Changed
 
 - Keep the merge message and version increment for gg do publish --continue
+
 ## 2.9.3 - 2026-09-30
 
 ### Changed

@@ -70,6 +70,59 @@ void main() {
       expect(files.state.doneSteps, ['merge']);
     });
 
+    group('takes the answers the config lacks from the state', () {
+      // A publish deletes publish_config.json right before its merge; a
+      // --continue after a failed merge or upload must not ask again.
+      test('when the config file is gone', () async {
+        await PublishState(
+          doneSteps: ['prepare_version'],
+          mergeMessage: 'Recorded',
+          versionIncrement: 'minor',
+        ).save(file: publishStateFile(d));
+
+        final files = loadRepoPublishFiles(d);
+        expect(files.config.mergeMessage, 'Recorded');
+        expect(files.config.versionIncrement, VersionIncrement.minor);
+      });
+
+      test('but never over an answer the config has', () async {
+        await RepoPublishConfig(
+          mergeMessage: 'Config',
+          versionIncrement: VersionIncrement.patch,
+        ).save(file: repoPublishConfigFile(d));
+        await PublishState(
+          mergeMessage: 'Recorded',
+          versionIncrement: 'major',
+        ).save(file: publishStateFile(d));
+
+        final files = loadRepoPublishFiles(d);
+        expect(files.config.mergeMessage, 'Config');
+        expect(files.config.versionIncrement, VersionIncrement.patch);
+      });
+
+      test('field by field', () async {
+        await RepoPublishConfig(mergeMessage: 'Config')
+            .save(file: repoPublishConfigFile(d));
+        await PublishState(
+          mergeMessage: 'Recorded',
+          versionIncrement: 'major',
+        ).save(file: publishStateFile(d));
+
+        final files = loadRepoPublishFiles(d);
+        expect(files.config.mergeMessage, 'Config');
+        expect(files.config.versionIncrement, VersionIncrement.major);
+      });
+
+      test('keeping a merge-only run without an increment', () async {
+        await PublishState(mergeMessage: 'Merge')
+            .save(file: publishStateFile(d));
+
+        final files = loadRepoPublishFiles(d);
+        expect(files.config.mergeMessage, 'Merge');
+        expect(files.config.versionIncrement, isNull);
+      });
+    });
+
     test('falls back to a legacy gg-publish.json', () {
       writeLegacy('''
 {

@@ -29,6 +29,11 @@ File publishStateFile(Directory dir) =>
 /// the state away and keeps the answers, and a leftover state file is the one
 /// thing that makes a `--continue` legitimate.
 ///
+/// The one exception is [mergeMessage] and [versionIncrement]: the answers
+/// the run started with, recorded here as well. `publish_config.json` is
+/// deleted right before the merge, so a run that fails at or after the merge
+/// would otherwise leave a `--continue` with nothing to answer from.
+///
 /// Unlike the legacy [PublishConfig] this file is written in **camelCase** —
 /// a new schema with no back-compat obligations, consistent with
 /// `publish_config.json`. The legacy reader keeps its snake_case keys.
@@ -42,6 +47,8 @@ class PublishState {
     this.channel,
     this.deleteTicket,
     this.deleteFeatureBranch,
+    this.mergeMessage,
+    this.versionIncrement,
   }) : doneSteps = List<String>.unmodifiable(doneSteps ?? const <String>[]);
 
   /// The publish progress marker, one of [allowedPublishStatuses]; null when
@@ -67,6 +74,13 @@ class PublishState {
 
   /// Whether the feature branch is deleted after the publish.
   final bool? deleteFeatureBranch;
+
+  /// The merge message the run started with.
+  final String? mergeMessage;
+
+  /// The version increment the run started with, one of
+  /// [allowedVersionIncrements]; null for a merge-only run.
+  final String? versionIncrement;
 
   /// Reads the state of [dir], or null when no state file exists.
   ///
@@ -121,6 +135,13 @@ class PublishState {
       key: 'deleteFeatureBranch',
       where: where,
     ),
+    mergeMessage: _readString(json, key: 'mergeMessage', where: where),
+    versionIncrement: _readOneOf(
+      json,
+      key: 'versionIncrement',
+      allowed: allowedVersionIncrements,
+      where: where,
+    ),
   );
 
   /// This state as a JSON map, omitting null and empty fields.
@@ -132,6 +153,8 @@ class PublishState {
     if (channel != null) 'channel': channel,
     if (deleteTicket != null) 'deleteTicket': deleteTicket,
     if (deleteFeatureBranch != null) 'deleteFeatureBranch': deleteFeatureBranch,
+    if (mergeMessage != null) 'mergeMessage': mergeMessage,
+    if (versionIncrement != null) 'versionIncrement': versionIncrement,
   };
 
   /// This state pretty-printed as a two-space-indented JSON string.
@@ -189,6 +212,8 @@ class PublishState {
     String? channel,
     bool? deleteTicket,
     bool? deleteFeatureBranch,
+    String? mergeMessage,
+    String? versionIncrement,
   }) => PublishState(
     status: status ?? this.status,
     doneSteps: doneSteps ?? this.doneSteps,
@@ -197,6 +222,8 @@ class PublishState {
     channel: channel ?? this.channel,
     deleteTicket: deleteTicket ?? this.deleteTicket,
     deleteFeatureBranch: deleteFeatureBranch ?? this.deleteFeatureBranch,
+    mergeMessage: mergeMessage ?? this.mergeMessage,
+    versionIncrement: versionIncrement ?? this.versionIncrement,
   );
 
   // ...........................................................................

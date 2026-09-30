@@ -44,7 +44,9 @@ void main() {
   "pr": true,
   "channel": "rc",
   "deleteTicket": false,
-  "deleteFeatureBranch": true
+  "deleteFeatureBranch": true,
+  "mergeMessage": "Fix it",
+  "versionIncrement": "minor"
 }
 ''');
         expect(state.status, 'pending');
@@ -54,6 +56,8 @@ void main() {
         expect(state.channel, 'rc');
         expect(state.deleteTicket, isFalse);
         expect(state.deleteFeatureBranch, isTrue);
+        expect(state.mergeMessage, 'Fix it');
+        expect(state.versionIncrement, 'minor');
       });
 
       test('reads an empty object', () {
@@ -65,6 +69,8 @@ void main() {
         expect(state.channel, isNull);
         expect(state.deleteTicket, isNull);
         expect(state.deleteFeatureBranch, isNull);
+        expect(state.mergeMessage, isNull);
+        expect(state.versionIncrement, isNull);
       });
 
       test('drops duplicate steps', () {
@@ -119,6 +125,19 @@ void main() {
         expect(
           () => parse('{"channel":"nightly"}'),
           throwsA(isA<FormatException>()),
+        );
+      });
+
+      test('throws on an unknown version increment', () {
+        expect(
+          () => parse('{"versionIncrement":"huge"}'),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('"versionIncrement" must be one of'),
+            ),
+          ),
         );
       });
 
@@ -189,6 +208,8 @@ void main() {
           channel: 'stable',
           deleteTicket: true,
           deleteFeatureBranch: false,
+          mergeMessage: 'm',
+          versionIncrement: 'patch',
         ).toJson(),
         {
           'doneSteps': ['tag'],
@@ -197,6 +218,8 @@ void main() {
           'channel': 'stable',
           'deleteTicket': true,
           'deleteFeatureBranch': false,
+          'mergeMessage': 'm',
+          'versionIncrement': 'patch',
         },
       );
     });
@@ -251,9 +274,16 @@ void main() {
         channel: 'rc',
         deleteTicket: true,
         deleteFeatureBranch: true,
+        mergeMessage: 'm',
+        versionIncrement: 'major',
       );
 
       expect(state.copyWith().toJson(), state.toJson());
+      expect(state.copyWith(mergeMessage: 'n').mergeMessage, 'n');
+      expect(
+        state.copyWith(versionIncrement: 'patch').versionIncrement,
+        'patch',
+      );
       expect(state.copyWith(branch: 'g').branch, 'g');
       expect(state.copyWith(pr: false).pr, isFalse);
       expect(state.copyWith(channel: 'stable').channel, 'stable');

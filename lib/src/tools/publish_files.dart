@@ -31,11 +31,16 @@ RepoPublishFiles get emptyRepoPublishFiles =>
 ///
 /// A repository nothing was ever recorded for yields empty halves rather
 /// than null, so callers can read fields without a null dance.
+///
+/// A merge message or version increment the answers lack is taken from the
+/// state: a publish deletes `publish_config.json` right before its merge, and
+/// the state is where the run recorded what it started with. Without this a
+/// `--continue` after a failed merge or upload asked both questions again.
 RepoPublishFiles loadRepoPublishFiles(Directory repoDir) {
   final config = RepoPublishConfig.tryLoad(repoDir);
   final state = PublishState.tryLoad(repoDir);
   if (config != null && state != null) {
-    return (config: config, state: state);
+    return (config: _withRecordedAnswers(config, state), state: state);
   }
 
   final legacy = legacyPublishConfigFile(repoDir);
@@ -46,7 +51,25 @@ RepoPublishFiles loadRepoPublishFiles(Directory repoDir) {
         ).legacySplit(p.basename(repoDir.path))
       : emptyRepoPublishFiles;
 
-  return (config: config ?? fallback.config, state: state ?? fallback.state);
+  final resolvedState = state ?? fallback.state;
+  return (
+    config: _withRecordedAnswers(config ?? fallback.config, resolvedState),
+    state: resolvedState,
+  );
+}
+
+/// [config] with the answers it lacks filled in from [state].
+RepoPublishConfig _withRecordedAnswers(
+  RepoPublishConfig config,
+  PublishState state,
+) {
+  final increment = state.versionIncrement;
+  return config.copyWith(
+    mergeMessage: config.mergeMessage ?? state.mergeMessage,
+    versionIncrement:
+        config.versionIncrement ??
+        (increment == null ? null : parseVersionIncrement(increment)),
+  );
 }
 
 /// The legacy `<repo>/.gg/gg-publish.json`, migrating the even older

@@ -21,7 +21,7 @@ dependencies:
   gg_publish: ^4.9.0
   gg_status_printer: ^1.6.1
   gg_test: ^3.3.2
-  gg_version: ^5.6.0
+  gg_version: ^5.7.0
   interact: ^2.2.0
   matcher: ^0.12.20
   meta: ^1.19.0

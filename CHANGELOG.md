@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.9.3 - 2026-09-30
 
 ### Changed
 

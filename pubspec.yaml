@@ -1,6 +1,6 @@
 name: gg_one_core
 description: "Kernel, checks and publish configuration of the gg_one tool family - state caching, command bases, verification steps and gg-publish.json handling."
-version: 2.10.0
+version: 2.11.0
 repository: https://github.com/ggsuite/gg_one_core.git
 
 environment:
@@ -31,7 +31,7 @@ dependencies:
   yaml: ^3.1.4
 
 dev_dependencies:
-  dna_ggsuite: ^0.2.2
+  dna_ggsuite: ^0.2.3
   gg_capture_print: ^1.2.0
   helix: ^1.9.0
   lints: ^6.1.0

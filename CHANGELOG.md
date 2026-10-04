@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-### Changed
+### Added
 
-- gg do commit does nothing when only system commits exist
+- `ContributedCommits` tells gg's own bookkeeping from manual work in the
+commits a ticket contributes — one predicate for `gg do commit` and
+`PublishSkipCheck`, moved out of the latter so the two cannot drift apart
 
 ## 2.10.0 - 2026-09-30
 

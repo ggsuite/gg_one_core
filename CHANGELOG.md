@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.11.1 - 2026-10-06
+
+### Changed
+
+- Upgrade dependencies
+
 ## 2.11.0 - 2026-10-04
 
 ### Added

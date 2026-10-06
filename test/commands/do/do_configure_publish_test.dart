@@ -219,9 +219,8 @@ void main() {
         ).save(file: DoConfigurePublish.configFileFor(d));
 
         await expectLater(
-          makeCommand(
-            editMessage: (_) async => throw Exception('Ctrl-C'),
-          ).configure(directory: d, ggLog: ggLog),
+          makeCommand(editMessage: (_) async => throw Exception('Ctrl-C'))
+              .configure(directory: d, ggLog: ggLog),
           throwsA(isA<Exception>()),
         );
 

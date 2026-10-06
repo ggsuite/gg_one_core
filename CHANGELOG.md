@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Keep publish answers given before an interruption
+
 ## 2.11.0 - 2026-10-04
 
 ### Added

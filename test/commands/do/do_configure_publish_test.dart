@@ -186,6 +186,50 @@ void main() {
       expect(config.config.mergeMessage, 'Preset msg');
     });
 
+    group('keeps every answer given before an interruption', () {
+      test('the increment survives a cancelled merge message', () async {
+        await expectLater(
+          makeCommand(
+            increments: [2],
+            editMessage: (_) async => throw Exception('Ctrl-C'),
+          ).configure(directory: d, ggLog: ggLog),
+          throwsA(isA<Exception>()),
+        );
+
+        expect(reload().config.versionIncrement, VersionIncrement.major);
+      });
+
+      test('increment and message survive a cancelled delete '
+          'question', () async {
+        await expectLater(
+          makeCommand(
+            increments: [1],
+            confirmDeleteFeatureBranch: (_) async => throw Exception('Ctrl-C'),
+          ).configure(directory: d, ggLog: ggLog, mergeMessage: 'msg'),
+          throwsA(isA<Exception>()),
+        );
+
+        expect(reload().config.versionIncrement, VersionIncrement.minor);
+        expect(reload().config.mergeMessage, 'msg');
+      });
+
+      test('the early write keeps what the AI recorded', () async {
+        await RepoPublishConfig(
+          nextCommitMessage: CommitMessage(firstLine: 'Pending work'),
+        ).save(file: DoConfigurePublish.configFileFor(d));
+
+        await expectLater(
+          makeCommand(
+            editMessage: (_) async => throw Exception('Ctrl-C'),
+          ).configure(directory: d, ggLog: ggLog),
+          throwsA(isA<Exception>()),
+        );
+
+        expect(reload().config.nextCommitMessage!.firstLine, 'Pending work');
+        expect(reload().config.versionIncrement, VersionIncrement.patch);
+      });
+    });
+
     test('a preset increment skips the increment prompt', () async {
       final adapter = _StubAdapter([0]);
       final config = await makeCommand(adapter: adapter).configure(

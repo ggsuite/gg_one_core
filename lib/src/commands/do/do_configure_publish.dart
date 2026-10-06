@@ -118,6 +118,10 @@ class DoConfigurePublish extends DirCommand<void> {
   ///
   /// [mergeOnly] configures a `gg do publish --merge-only` run: it releases
   /// nothing, so no version increment is asked for and none is stored.
+  ///
+  /// Each answer is written as soon as it is given, so a run interrupted at a
+  /// later question keeps the earlier answers. `gg do publish` passes what is
+  /// already recorded as presets and therefore asks only what is missing.
   Future<RepoPublishFiles> configure({
     required Directory directory,
     required GgLog ggLog,
@@ -145,6 +149,7 @@ class DoConfigurePublish extends DirCommand<void> {
     }
 
     await _ensureIgnored.ensure(directory: directory);
+    final configFile = configFileFor(directory);
 
     // A merge-only run releases nothing: no version bump, no changelog
     // heading, no tag. Asking for an increment would offer a version that is
@@ -157,6 +162,14 @@ class DoConfigurePublish extends DirCommand<void> {
             currentVersion: await _currentVersion(directory),
             preselect: existing.config.versionIncrement,
           );
+
+    // Recorded right away: a run that stops at one of the questions below
+    // must not ask the version again.
+    if (increment != null) {
+      await existing.config
+          .copyWith(versionIncrement: increment)
+          .save(file: configFile);
+    }
 
     var message = mergeMessage?.trim() ?? '';
     if (message.isEmpty) {
@@ -173,23 +186,25 @@ class DoConfigurePublish extends DirCommand<void> {
       }
     }
 
-    final delete =
-        deleteFeatureBranch ??
-        await _confirmDeleteFeatureBranch(
-          await _localBranch.get(directory: directory, ggLog: <String>[].add),
-        );
-
     // Built explicitly rather than via copyWith: a merge-only run must clear
     // a recorded increment, not inherit it. The AI-maintained halves
-    // (nextCommitMessage, commits) are carried over untouched.
+    // (nextCommitMessage, commits) are carried over untouched. Saved before
+    // the delete question for the same reason as the increment above.
     final config = RepoPublishConfig(
       mergeMessage: message,
       versionIncrement: increment,
       nextCommitMessage: existing.config.nextCommitMessage,
       commits: existing.config.commits,
     );
+    await config.save(file: configFile);
+
+    final delete =
+        deleteFeatureBranch ??
+        await _confirmDeleteFeatureBranch(
+          await _localBranch.get(directory: directory, ggLog: <String>[].add),
+        );
+
     final state = existing.state.copyWith(deleteFeatureBranch: delete);
-    await config.save(file: configFileFor(directory));
     await state.save(file: stateFileFor(directory));
     return (config: config, state: state);
   }

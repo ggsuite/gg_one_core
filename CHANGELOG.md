@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.12.0 - 2026-10-06
+
+### Removed
+
+- Remove the 60-character limit of the commit message's first line
+
 ## 2.11.2 - 2026-10-06
 
 ### Changed

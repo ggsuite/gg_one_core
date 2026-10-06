@@ -4,11 +4,11 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
-/// The maximum length of a commit message's first line.
+/// The length a commit message's first line was once limited to.
 ///
-/// The first line is what `git log --oneline`, the pull-request title and
-/// every changelog entry show. Sixty characters is the budget that survives
-/// all three without being cut off, so it is enforced rather than suggested.
+/// The limit is no longer enforced: a first line may be as long as needed.
+/// The constant stays only for packages that still refer to it.
+@Deprecated('The first line of a commit message is no longer limited.')
 const int maxCommitMessageFirstLineLength = 60;
 
 /// A commit message split into the summary line and its detail lines.
@@ -22,7 +22,7 @@ class CommitMessage {
   CommitMessage({required this.firstLine, List<String>? details})
     : details = List<String>.unmodifiable(details ?? const <String>[]);
 
-  /// The summary line — at most [maxCommitMessageFirstLineLength] characters.
+  /// The summary line — never empty, but of any length.
   final String firstLine;
 
   /// One entry per notable change, rendered as the commit body.
@@ -49,8 +49,8 @@ class CommitMessage {
   }
 
   /// Reads a commit message from [json]. [where] names the source in error
-  /// messages. Throws a [FormatException] when the shape or the length of
-  /// `firstLine` is wrong.
+  /// messages. Throws a [FormatException] when the shape is wrong or
+  /// `firstLine` is empty.
   factory CommitMessage.fromJson(
     Map<String, dynamic> json, {
     required String where,
@@ -95,18 +95,13 @@ class CommitMessage {
 
   /// Why [firstLine] is not a usable summary, or null when it is fine.
   ///
-  /// The single place the length rule lives — the interactive prompt, the
-  /// `-m` option and the JSON reader all ask this method rather than carrying
-  /// their own copy of the limit.
+  /// The single place the rule lives — the interactive prompt, the `-m`
+  /// option and the JSON reader all ask this method rather than carrying
+  /// their own copy. Only an empty first line is rejected; its length is not
+  /// limited.
   static String? validationError(String firstLine) {
-    final trimmed = firstLine.trim();
-    if (trimmed.isEmpty) {
+    if (firstLine.trim().isEmpty) {
       return 'the commit message must not be empty.';
-    }
-    if (trimmed.length > maxCommitMessageFirstLineLength) {
-      return 'the first line must not exceed '
-          '$maxCommitMessageFirstLineLength characters '
-          '(was ${trimmed.length}).';
     }
     return null;
   }

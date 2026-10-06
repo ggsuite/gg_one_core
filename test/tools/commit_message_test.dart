@@ -34,14 +34,8 @@ void main() {
         expect(CommitMessage.validationError('  '), contains('not be empty'));
       });
 
-      test('accepts exactly 60 characters', () {
-        expect(CommitMessage.validationError('a' * 60), isNull);
-      });
-
-      test('rejects 61 characters and names the length', () {
-        final error = CommitMessage.validationError('a' * 61);
-        expect(error, contains('60 characters'));
-        expect(error, contains('was 61'));
+      test('accepts a long first line', () {
+        expect(CommitMessage.validationError('a' * 200), isNull);
       });
     });
 
@@ -102,14 +96,23 @@ void main() {
         );
       });
 
-      test('throws when firstLine is too long', () {
+      test('accepts a long firstLine', () {
         expect(
-          () => CommitMessage.fromJson({'firstLine': 'a' * 61}, where: 'w'),
+          CommitMessage.fromJson({
+            'firstLine': 'a' * 200,
+          }, where: 'w').firstLine,
+          'a' * 200,
+        );
+      });
+
+      test('throws when firstLine is empty', () {
+        expect(
+          () => CommitMessage.fromJson({'firstLine': '  '}, where: 'w'),
           throwsA(
             isA<FormatException>().having(
               (e) => e.message,
               'message',
-              contains('60 characters'),
+              contains('w: the commit message must not be empty'),
             ),
           ),
         );
@@ -146,10 +149,6 @@ void main() {
           ),
         );
       });
-    });
-
-    test('maxCommitMessageFirstLineLength is 60', () {
-      expect(maxCommitMessageFirstLineLength, 60);
     });
   });
 }

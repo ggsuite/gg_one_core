@@ -105,18 +105,6 @@ void main() {
     );
   }
 
-  // Stubs whether plain »npm« is authenticated for [registry].
-  void stubNpmWhoami({String? registry, required int exitCode}) {
-    when(
-      () => processWrapper.run(
-        'npm',
-        <String>['whoami', if (registry != null) '--registry=$registry'],
-        workingDirectory: d.path,
-        runInShell: true,
-      ),
-    ).thenAnswer((_) async => ProcessResult(0, exitCode, '', ''));
-  }
-
   Future<void> run() => runner.run(['npm-logged-in', '--input', d.path]);
 
   setUp(() {
@@ -331,131 +319,79 @@ void main() {
     });
 
     group('auth outcomes', () {
-      group('names the package manager version split', () {
-        /// A 401 against npmjs.org, with pnpm 11 pinned in the package and
-        /// pnpm 10 installed globally - the split that makes a successful
-        /// »pnpm login« invisible to this check.
-        void stubSplit({int npmWhoamiExitCode = 1}) {
-          stubTargets({PublishTarget.npm});
-          writePackageJson('{"name": "x", "packageManager": "pnpm@11.5.3"}');
-          stubConfig('registry', value: 'https://registry.npmjs.org/');
-          stubWhoami(
-            registry: 'https://registry.npmjs.org/',
-            exitCode: 1,
-            stderr: '401 Unauthorized',
-          );
-          stubVersions(here: '11.5.3', elsewhere: '10.28.2');
-          stubNpmWhoami(
-            registry: 'https://registry.npmjs.org/',
-            exitCode: npmWhoamiExitCode,
-          );
-        }
-
-        Future<String> messageOf() async {
-          try {
-            await run();
-          } on Exception catch (e) {
-            return rmControls(e.toString());
-          }
-          fail('The check was expected to throw.');
-        }
-
-        test('with both versions and where to log in', () async {
-          stubSplit();
-
-          final message = await messageOf();
-
-          expect(message, contains('pnpm 11.5.3 runs'));
-          expect(message, contains('pnpm 10.28.2'));
-          expect(message, contains('packageManager'));
-          expect(message, contains('corepack prepare pnpm@11.5.3 --activate'));
-        });
-
-        test('and where the token went when npm can see it', () async {
-          // npm reads the npm configuration whatever the package pins - a
-          // yes there pinpoints the split instead of guessing at it.
-          stubSplit(npmWhoamiExitCode: 0);
-
-          expect(await messageOf(), contains('npm itself is authenticated'));
-        });
-
-        test(
-          'and stays quiet about npm when npm cannot see it either',
-          () async {
-            stubSplit();
-
-            expect(
-              await messageOf(),
-              isNot(contains('npm itself is authenticated')),
-            );
-          },
+      /// A 401 against npmjs.org, with [packageManager] pinned in the package
+      /// and `pnpm --version` reporting [here] and [elsewhere].
+      void stub401({String? packageManager, String? here, String? elsewhere}) {
+        stubTargets({PublishTarget.npm});
+        writePackageJson(
+          packageManager == null
+              ? '{"name": "x"}'
+              : '{"name": "x", "packageManager": "$packageManager"}',
         );
+        stubConfig('registry', value: 'https://registry.npmjs.org/');
+        stubWhoami(
+          registry: 'https://registry.npmjs.org/',
+          exitCode: 1,
+          stderr: '401 Unauthorized',
+        );
+        stubVersions(here: here, elsewhere: elsewhere);
+      }
 
-        test('falls back to the generic hint without a split', () async {
-          stubTargets({PublishTarget.npm});
-          writePackageJson('{"name": "x"}');
-          stubConfig('registry', value: 'https://registry.npmjs.org/');
-          stubWhoami(
-            registry: 'https://registry.npmjs.org/',
-            exitCode: 1,
-            stderr: '401 Unauthorized',
-          );
-          stubVersions(here: '10.28.2', elsewhere: '10.28.2');
+      Future<String> messageOf() async {
+        try {
+          await run();
+        } on Exception catch (e) {
+          return rmControls(e.toString());
+        }
+        fail('The check was expected to throw.');
+      }
 
-          final message = await messageOf();
+      test('throws for a clear auth failure (401), naming the registry '
+          'and the commands to copy', () async {
+        stub401(here: '10.28.2', elsewhere: '10.28.2');
 
-          expect(message, isNot(contains('corepack prepare')));
-          expect(message, contains('do not share a credential store'));
-        });
-
-        test('falls back when a version cannot be read at all', () async {
-          stubTargets({PublishTarget.npm});
-          writePackageJson('{"name": "x"}');
-          stubConfig('registry', value: 'https://registry.npmjs.org/');
-          stubWhoami(
-            registry: 'https://registry.npmjs.org/',
-            exitCode: 1,
-            stderr: '401 Unauthorized',
-          );
-          stubVersions(here: null, elsewhere: '10.28.2');
-
-          expect(await messageOf(), isNot(contains('corepack prepare')));
-        });
+        // The package directory decides which pnpm serves the login.
+        expect(
+          await messageOf(),
+          'Exception: Not logged in to https://registry.npmjs.org/. Run:\n'
+          '    cd ${d.path}\n'
+          '    pnpm login --registry=https://registry.npmjs.org/',
+        );
+        expect(messages.any((m) => m.contains('✗ Logged in')), isTrue);
+        // The raw whoami output stays out of the error, but not lost.
+        expect(messages, contains('pnpm whoami: 401 Unauthorized'));
       });
 
-      test(
-        'throws for a clear auth failure (401), naming the registry',
-        () async {
-          stubTargets({PublishTarget.npm});
-          writePackageJson('{"name": "x"}');
-          stubConfig('registry', value: 'https://registry.npmjs.org/');
-          stubWhoami(
-            registry: 'https://registry.npmjs.org/',
-            exitCode: 1,
-            stderr: '401 Unauthorized',
+      group('names the package manager version split', () {
+        test('with both versions in one extra line', () async {
+          // pnpm 11 pinned, pnpm 10 global: a successful »pnpm login«
+          // outside the package is invisible to this check.
+          stub401(
+            packageManager: 'pnpm@11.5.3',
+            here: '11.5.3',
+            elsewhere: '10.28.2',
           );
-          await expectLater(
-            run(),
-            throwsA(
-              isA<Exception>().having(
-                (e) => rmControls(e.toString()),
-                'message',
-                allOf(
-                  contains('Not logged in to https://registry.npmjs.org/'),
-                  contains('401 Unauthorized'),
-                  contains('pnpm login --registry=https://registry.npmjs.org/'),
-                  // The package directory decides which pnpm corepack serves,
-                  // and every major version has its own credential store — a
-                  // login run elsewhere does not reach this package.
-                  contains('in ${d.path}'),
-                  contains('do not share a credential store'),
-                ),
-              ),
+
+          expect(
+            await messageOf(),
+            endsWith(
+              '    pnpm login --registry=https://registry.npmjs.org/\n'
+              '    Only there: pnpm 11.5.3 runs in that folder, '
+              'pnpm 10.28.2 everywhere else, and they keep separate logins.',
             ),
           );
-          expect(messages.any((m) => m.contains('✗ Logged in')), isTrue);
-        },
-      );
+        });
+
+        test('leaves the extra line out without a split', () async {
+          stub401(here: '10.28.2', elsewhere: '10.28.2');
+          expect(await messageOf(), isNot(contains('Only there')));
+        });
+
+        test('leaves it out when a version cannot be read', () async {
+          stub401(here: null, elsewhere: '10.28.2');
+          expect(await messageOf(), isNot(contains('Only there')));
+        });
+      });
 
       test(
         'skips (no false-fail) when the registry does not support whoami',

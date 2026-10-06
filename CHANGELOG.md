@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Make the npm login error short and actionable: registry, directory, login command
+
 ## 2.11.1 - 2026-10-06
 
 ### Changed

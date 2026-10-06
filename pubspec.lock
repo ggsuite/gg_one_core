@@ -340,10 +340,9 @@ packages:
   gg_publish:
     dependency: "direct main"
     description:
-      name: gg_publish
-      sha256: "4c5970eb62c5b33237ecb8b8e6907600c3ff1b67ea816cc1207d2bb730569bc3"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../gg_publish"
+      relative: true
+    source: path
     version: "4.9.0"
   gg_status_printer:
     dependency: "direct main"
@@ -381,10 +380,10 @@ packages:
     dependency: "direct dev"
     description:
       name: helix
-      sha256: "0eb0407fddd8431dbdc50660deb00a98f9dcc01c6d51769d48e6d9351da2df92"
+      sha256: ce0982d27de107b92169bf7ffa59079456ab162e23d5f3d071c273ecf06b36bd
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.0"
+    version: "1.10.0"
   http:
     dependency: transitive
     description:

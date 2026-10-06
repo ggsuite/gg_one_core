@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.12.1 - 2026-10-06
+
+### Changed
+
+- Merge main
+- Upgrade_dependencies
+
 ## 2.12.0 - 2026-10-06
 
 ### Removed

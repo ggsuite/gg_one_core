@@ -5,6 +5,17 @@
 ### Changed
 
 - Merge main
+## 2.12.0 - 2026-10-06
+
+### Removed
+
+- Remove the 60-character limit of the commit message's first line
+
+## 2.11.2 - 2026-10-06
+
+### Changed
+
+- Make the npm login error short and actionable: registry, directory, login command
 
 ## 2.11.1 - 2026-10-06
 

@@ -292,6 +292,65 @@ void main() {
         );
       });
 
+      group('with keepForeignChanges', () {
+        Future<bool> stateRecorded() => GgState(ggLog: messages.add)
+            .readSuccess(
+              directory: d,
+              key: GgState.doCommitKey,
+              ggLog: messages.add,
+            );
+
+        test('commits gg files and leaves foreign ones dirty', () async {
+          await File('${d.path}/pubspec.lock').writeAsString('generated');
+          await File('${d.path}/user_code.dart').writeAsString('user work');
+
+          final result = await systemCommit.commit(
+            directory: d,
+            ggLog: messages.add,
+            message: '#gg: Update pubspec.lock',
+            stateKey: GgState.doCommitKey,
+            keepForeignChanges: true,
+          );
+
+          expect(result.userCommitCreated, isFalse);
+          expect(result.systemCommitCreated, isTrue);
+          expect(await filesOf('HEAD'), ['pubspec.lock']);
+          expect(await dirtyFiles(), ['user_code.dart']);
+          expect(await stateRecorded(), isFalse);
+        });
+
+        test('does nothing when only foreign files are dirty', () async {
+          await run('git', ['checkout', 'main']);
+          await File('${d.path}/user_code.dart').writeAsString('user work');
+
+          // Nothing to commit, so not even the main branch rule applies.
+          final result = await systemCommit.commit(
+            directory: d,
+            ggLog: messages.add,
+            message: '#gg: Update pubspec.lock',
+            keepForeignChanges: true,
+          );
+
+          expect(result.userCommitCreated, isFalse);
+          expect(result.systemCommitCreated, isFalse);
+          expect(await dirtyFiles(), ['user_code.dart']);
+        });
+
+        test('records the state when nothing foreign is left', () async {
+          await File('${d.path}/pubspec.lock').writeAsString('generated');
+
+          await systemCommit.commit(
+            directory: d,
+            ggLog: messages.add,
+            message: '#gg: Update pubspec.lock',
+            stateKey: GgState.doCommitKey,
+            keepForeignChanges: true,
+          );
+
+          expect(await stateRecorded(), isTrue);
+        });
+      });
+
       group('enforces the feature branch rule', () {
         test('throws on main instead of committing', () async {
           await run('git', ['checkout', 'main']);

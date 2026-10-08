@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Count dependency changes in gg commits as work and let system commits keep foreign changes
+
 ## 2.12.1 - 2026-10-06
 
 ### Changed

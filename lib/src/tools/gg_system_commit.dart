@@ -118,6 +118,9 @@ class GgSystemCommit {
   /// description found above [directory] is used, then a branch-based
   /// fallback.
   ///
+  /// [keepForeignChanges] leaves foreign changes uncommitted instead of
+  /// saving them; [stateKey] is then only recorded when there are none.
+  ///
   /// [stateKey] — when set, the state is recorded via [GgState.writeSuccess]
   /// after the commits.
   ///
@@ -140,6 +143,7 @@ class GgSystemCommit {
     bool ammendWhenNotPushed = false,
     UserCommitMessageBuilder? userCommitMessage,
     String? stateKey,
+    bool keepForeignChanges = false,
   }) async {
     if (!isGgGenerated(message)) {
       throw ArgumentError(
@@ -211,7 +215,7 @@ class GgSystemCommit {
         ? ggOwnedDirty
         : paths.where(dirtySet.contains).toList();
 
-    if (ggPaths.isEmpty && foreign.isEmpty) {
+    if (ggPaths.isEmpty && (foreign.isEmpty || keepForeignChanges)) {
       return const GgSystemCommitResult(
         userCommitCreated: false,
         systemCommitCreated: false,
@@ -227,7 +231,7 @@ class GgSystemCommit {
     // Save the user's work first, under its own prefix-less message.
     String? resolvedUserMessage;
     var userCommitCreated = false;
-    if (foreign.isNotEmpty) {
+    if (foreign.isNotEmpty && !keepForeignChanges) {
       resolvedUserMessage = await _resolveUserMessage(
         directory,
         userCommitMessage,
@@ -267,7 +271,8 @@ class GgSystemCommit {
       systemCommitCreated = true;
     }
 
-    if (stateKey != null) {
+    // A tree still holding foreign changes is not »everything committed«.
+    if (stateKey != null && (foreign.isEmpty || !keepForeignChanges)) {
       await _state.writeSuccess(directory: directory, key: stateKey);
     }
 

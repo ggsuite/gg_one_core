@@ -4,6 +4,7 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:gg_one_core/gg_one_core.dart';
@@ -175,6 +176,62 @@ void main() {
           );
         });
 
+        test('when a gg commit only changes dependency constraints', () async {
+          // `gg do push` upgrades with --tighten; dev dependencies and
+          // dependency_overrides never reach a consumer.
+          final dir = await createRepo();
+          await commit(
+            dir,
+            'pubspec.yaml',
+            'name: a\ndependencies:\n  b: ^1.0.0\n',
+            'Add b',
+          );
+          await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+          await git(dir, ['checkout', '-b', 'feat']);
+          await commit(
+            dir,
+            'pubspec.yaml',
+            'name: a\n'
+                'dependencies:\n'
+                '  b: ^1.2.0\n'
+                'dev_dependencies:\n'
+                '  helix: ^1.0.0\n'
+                'dependency_overrides:\n'
+                '  b:\n'
+                '    path: ../b\n',
+            '#gg: dart pub upgrade --major-versions --tighten',
+          );
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            isNull,
+          );
+        });
+
+        test('when a gg commit rewrites the specs in package.json', () async {
+          final dir = await createRepo();
+          await commit(
+            dir,
+            'package.json',
+            '{"dependencies": {"b": "^1.0.0"}}',
+            'Add package.json',
+          );
+          await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+          await git(dir, ['checkout', '-b', 'feat']);
+          await commit(
+            dir,
+            'package.json',
+            '{"dependencies": {"b": "link:../b"},'
+                ' "devDependencies": {"c": "^1.0.0"}}',
+            '#gg: changed references to path',
+          );
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            isNull,
+          );
+        });
+
         test('when the remote declares the default branch', () async {
           final dir = await createRepo(defaultBranch: 'develop');
           await git(dir, [
@@ -231,6 +288,114 @@ void main() {
             await contributedCommits.manualCommitReason(directory: dir),
             contains('also changes »lib.dart«'),
           );
+        });
+
+        group('for a gg commit that changes dependency names', () {
+          // The scenario of the old `gg do add`: the user's new dependency
+          // ended up in the bookkeeping commit and was lost on publish.
+          test('naming the dependency added to a pubspec.yaml', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            File(path.join(dir.path, 'pubspec_overrides.yaml'))
+                .writeAsStringSync('dependency_overrides: {}\n');
+            await commit(
+              dir,
+              'pubspec.yaml',
+              'name: a\ndependencies:\n  c: ^1.0.0\n  b: ^1.0.0\n',
+              '#gg: changed references to path',
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              'the gg commit »#gg: changed references to path« changes the '
+              'dependencies of »pubspec.yaml« (added: b, c)',
+            );
+          });
+
+          test('naming added and removed package.json dependencies, '
+              'nested at any depth', () async {
+            final dir = await createRepo();
+            final manifest = path.join('packages', 'x', 'package.json');
+            await commit(
+              dir,
+              manifest,
+              '{"peerDependencies": {"p": "^1.0.0"}}',
+              'Add package',
+            );
+            await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commit(
+              dir,
+              manifest,
+              '{"optionalDependencies": {"o": "^1.0.0"}}',
+              '#gg: changed references to path',
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              contains(
+                'the dependencies of »packages/x/package.json« '
+                '(added: o; removed: p)',
+              ),
+            );
+          });
+
+          test('when the gg commit adds the manifest itself', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commit(
+              dir,
+              'package.json',
+              '{"dependencies": {"b": "^1.0.0"}}',
+              '#gg: changed references to path',
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              contains('»package.json« (added: b)'),
+            );
+          });
+
+          test('naming a dependency the gg commit removes', () async {
+            final dir = await createRepo();
+            await commit(
+              dir,
+              'pubspec.yaml',
+              'name: a\ndependencies:\n  b: ^1.0.0\n',
+              'Add b',
+            );
+            await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commit(
+              dir,
+              'pubspec.yaml',
+              '# all gone\n',
+              '#gg: changed references to path',
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              contains('(removed: b)'),
+            );
+          });
+
+          for (final (name, content) in [
+            ('pubspec.yaml', 'name: a\ndependencies: [b]\n'),
+            ('pubspec.yaml', '- not a map\n'),
+            ('pubspec.yaml', 'name: a\nrepository:https://x\n'),
+            ('package.json', '{"dependencies": '),
+          ]) {
+            test('when $name cannot be read: ${jsonEncode(content)}', () async {
+              final dir = await createRepo();
+              await git(dir, ['checkout', '-b', 'feat']);
+              await commit(dir, name, content, '#gg: dart pub get');
+
+              expect(
+                await contributedCommits.manualCommitReason(directory: dir),
+                contains('changes »$name«, whose dependencies cannot be read'),
+              );
+            });
+          }
         });
 
         test('when there is no branch to compare against', () async {

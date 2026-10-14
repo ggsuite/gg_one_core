@@ -147,6 +147,9 @@ class ContributedCommits {
     ],
   };
 
+  /// A leading UTF-8 byte order mark, decoded as UTF-8 or as Windows-1252.
+  static final RegExp _byteOrderMark = RegExp('^(\uFEFF|\u00EF\u00BB\u00BF)');
+
   // ...........................................................................
   /// Whether [filePath] holds content gg derives rather than work someone
   /// did — the files [GgState.ignoreFiles] keeps out of the state hash.
@@ -209,11 +212,14 @@ class ContributedCommits {
     List<String> sections,
     Directory repoDir,
   ) async {
-    final content = await _runGit(
+    // A manifest saved with a UTF-8 BOM starts with U+FEFF or — decoded
+    // with the Windows code page — with »ï»¿«. Either makes jsonDecode
+    // fail, and an unreadable manifest would count as work.
+    final content = (await _runGit(
       <String>['show', '$rev:$file'],
       repoDir: repoDir,
       allowFailure: true,
-    );
+    )).replaceFirst(_byteOrderMark, '');
     final Object? manifest;
     try {
       manifest = file.endsWith('.json')

@@ -232,6 +232,51 @@ void main() {
           );
         });
 
+        for (final (name, encoding) in [
+          ('the system encoding', systemEncoding),
+          ('UTF-8', utf8),
+          ('Windows-1252', latin1),
+        ]) {
+          test('when a gg commit keeps the dependencies of a manifest with a '
+              'byte order mark, read in $name', () async {
+            // Windows editors like to save a BOM; decoded with the code page
+            // it arrives as »ï»¿« and used to make the manifest unreadable.
+            final dir = await createRepo();
+            await commit(
+              dir,
+              'package.json',
+              '\uFEFF{"dependencies": {"b": "^1.0.0"}}',
+              'Add package.json',
+            );
+            await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commit(
+              dir,
+              'package.json',
+              '\uFEFF{"dependencies": {"b": "link:../b"}}',
+              '#gg: changed references to path',
+            );
+
+            final reader = ContributedCommits(
+              processRunner:
+                  (
+                    executable,
+                    arguments, {
+                    workingDirectory,
+                    environment,
+                    runInShell = true,
+                  }) => Process.run(
+                    executable,
+                    arguments,
+                    workingDirectory: workingDirectory,
+                    runInShell: runInShell,
+                    stdoutEncoding: encoding,
+                  ),
+            );
+            expect(await reader.manualCommitReason(directory: dir), isNull);
+          });
+        }
+
         test('when the remote declares the default branch', () async {
           final dir = await createRepo(defaultBranch: 'develop');
           await git(dir, [

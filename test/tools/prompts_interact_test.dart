@@ -47,7 +47,7 @@ void main() {
       final input = buildInput(prompt: 'Name?');
       expect(input.theme, same(promptTheme));
       expect(input.prompt, 'Name?');
-      expect(input.defaultValue, '');
+      expect(input.defaultValue, isNull);
       expect(input.initialText, '');
     });
 

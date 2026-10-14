@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Show no default hint in an input prompt without a default value
+
 ## 2.12.1 - 2026-10-06
 
 ### Changed

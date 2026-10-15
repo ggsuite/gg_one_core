@@ -5,6 +5,11 @@
 ### Changed
 
 - Show no default hint in an input prompt without a default value
+## 2.13.0 - 2026-10-14
+
+### Changed
+
+- Count dependency changes in gg commits as work and let system commits keep foreign changes
 
 ## 2.12.1 - 2026-10-06
 

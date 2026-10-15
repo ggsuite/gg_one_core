@@ -148,7 +148,8 @@ Select buildSelect({
 
 /// Builds the input prompt [InteractPrompts.input] draws: in
 /// [messageEditorTheme] for a commit or merge message, in [promptTheme]
-/// otherwise.
+/// otherwise. Without [defaultValue] the prompt shows no default hint —
+/// an empty one would draw as a bare "()".
 ///
 /// Building touches no terminal — only `interact()` does.
 Input buildInput({
@@ -159,7 +160,7 @@ Input buildInput({
 }) => Input.withTheme(
   theme: asMessageEditor ? messageEditorTheme : promptTheme,
   prompt: prompt,
-  defaultValue: defaultValue ?? '',
+  defaultValue: defaultValue,
   initialText: initialText ?? '',
 );
 

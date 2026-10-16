@@ -8,8 +8,7 @@ import 'package:gg_publish/gg_publish.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_semver/pub_semver.dart';
 
-import 'prompts.dart';
-import 'terminal_guard.dart';
+import 'package:gg_interact/gg_interact.dart';
 
 /// Abstraction over interactive selection used by [VersionSelector].
 abstract class InteractAdapter {

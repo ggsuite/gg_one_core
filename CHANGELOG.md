@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.14.0 - 2026-10-19
+
+### Changed
+
+- Take the prompts from gg_interact
+
 ## 2.13.1 - 2026-10-16
 
 ### Changed

@@ -16,12 +16,13 @@ import 'package:path/path.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import '../../tools/ensure_publish_config_ignored.dart';
-import '../../tools/prompts.dart';
+
+import 'package:gg_interact/gg_interact.dart';
+
 import '../../tools/publish_config.dart';
 import '../../tools/publish_files.dart';
 import '../../tools/publish_state.dart';
 import '../../tools/repo_publish_config.dart';
-import '../../tools/terminal_guard.dart';
 import '../../tools/ticket_description.dart';
 import '../../tools/version_selector.dart';
 

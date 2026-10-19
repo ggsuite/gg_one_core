@@ -6,6 +6,8 @@
 
 library;
 
+export 'package:gg_interact/gg_interact.dart';
+
 // Checks
 export 'src/commands/check/analyze.dart';
 export 'src/commands/check/build.dart';
@@ -31,16 +33,11 @@ export 'src/tools/gg_commit_message.dart';
 export 'src/tools/gg_owned_files.dart';
 export 'src/tools/gg_state.dart';
 export 'src/tools/gg_system_commit.dart';
-export 'src/tools/prompts.dart';
-export 'src/tools/prompts_interact.dart'
-    if (dart.library.js_interop) 'src/tools/prompts_unsupported.dart'
-    show colorOff;
 export 'src/tools/publish_config.dart';
 export 'src/tools/publish_files.dart';
 export 'src/tools/publish_state.dart';
 export 'src/tools/pubspec_overrides_backup.dart';
 export 'src/tools/repo_publish_config.dart';
 export 'src/tools/suggestion.dart';
-export 'src/tools/terminal_guard.dart';
 export 'src/tools/ticket_description.dart';
 export 'src/tools/version_selector.dart';

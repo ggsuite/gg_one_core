@@ -300,10 +300,9 @@ packages:
   gg_interact:
     dependency: "direct main"
     description:
-      name: gg_interact
-      sha256: "03cb7f952ea01f52c92c7ad632b63dc5999b76274eb7b094d86cf0bc2df5d04e"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../gg_interact"
+      relative: true
+    source: path
     version: "0.0.2"
   gg_is_flutter:
     dependency: "direct main"

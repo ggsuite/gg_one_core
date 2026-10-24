@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Count the DNA's generated files as gg's own in its commit
+
+In »#gg: generated DNA« commits, the instances dna/_generated.json lists before or after, the list itself and CLAUDE.md when the DNA writes its block there are bookkeeping
+ggGeneratedDnaMessage names the subject the DNA engine commits with
+
 ## 2.14.0 - 2026-10-19
 
 ### Changed

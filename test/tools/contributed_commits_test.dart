@@ -75,6 +75,43 @@ void main() {
     await git(dir, ['commit', '-m', message]);
   }
 
+  // ...........................................................................
+  /// Commits [files] in [dir] as the DNA does: under its subject, together
+  /// with the list of the [instances] it generates — or [generated] as that
+  /// list —, after deleting [removed].
+  Future<void> dnaCommit(
+    Directory dir, {
+    Map<String, String> files = const {},
+    List<String> removed = const [],
+    List<String> instances = const [],
+    bool claudeMd = false,
+    String? generated,
+  }) async {
+    for (final entry in files.entries) {
+      final target = File(path.join(dir.path, entry.key));
+      target.parent.createSync(recursive: true);
+      target.writeAsStringSync(entry.value);
+    }
+    for (final file in removed) {
+      File(path.join(dir.path, file)).deleteSync();
+    }
+    final list = File(path.join(dir.path, 'dna', '_generated.json'));
+    list.parent.createSync(recursive: true);
+    list.writeAsStringSync(
+      generated ??
+          jsonEncode({
+            'version': 1,
+            'claude': {'claudeMdFromDna': claudeMd},
+            'instances': [
+              for (final instance in instances)
+                {'path': instance, 'hash': '0x0'},
+            ],
+          }),
+    );
+    await git(dir, ['add', '-A']);
+    await git(dir, ['commit', '-m', ggGeneratedDnaMessage]);
+  }
+
   group('ContributedCommits', () {
     group('manualCommitReason(directory)', () {
       group('returns null', () {
@@ -297,9 +334,103 @@ void main() {
             isNull,
           );
         });
+
+        test('when a DNA commit writes only the files the DNA lists', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await dnaCommit(
+            dir,
+            files: {'.claude/hooks/a.json': '{}', 'CLAUDE.md': '# Block'},
+            instances: ['.claude/hooks/a.json'],
+            claudeMd: true,
+          );
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            isNull,
+          );
+        });
+
+        test(
+          'when a DNA commit removes a file the DNA listed before',
+          () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await dnaCommit(
+              dir,
+              files: {'doc/guides/a.md': 'A'},
+              instances: ['doc/guides/a.md'],
+            );
+            await dnaCommit(dir, removed: ['doc/guides/a.md']);
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              isNull,
+            );
+          },
+        );
       });
 
       group('returns a reason', () {
+        test('naming a file a DNA commit writes but does not list', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await dnaCommit(
+            dir,
+            files: {'.claude/hooks/a.json': '{}', 'lib.dart': 'void main() {}'},
+            instances: ['.claude/hooks/a.json'],
+          );
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            contains('also changes »lib.dart«'),
+          );
+        });
+
+        test('naming CLAUDE.md when the DNA does not write it', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await dnaCommit(dir, files: {'CLAUDE.md': '# Mine'});
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            contains('also changes »CLAUDE.md«'),
+          );
+        });
+
+        test('naming a listed file another gg commit changes', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await dnaCommit(
+            dir,
+            files: {'.claude/hooks/a.json': '{}'},
+            instances: ['.claude/hooks/a.json'],
+          );
+          await commit(dir, '.claude/hooks/a.json', '[]', '#gg: dart pub get');
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            contains('»#gg: dart pub get« also changes ».claude/hooks/a.json«'),
+          );
+        });
+
+        for (final generated in ['no json', '[]']) {
+          test('when the DNA list is ${jsonEncode(generated)}', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await dnaCommit(
+              dir,
+              files: {'.claude/hooks/a.json': '{}'},
+              generated: generated,
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              contains('also changes ».claude/hooks/a.json«'),
+            );
+          });
+        }
+
         test('naming the manual commit', () async {
           final dir = await createRepo();
           await git(dir, ['checkout', '-b', 'feat']);

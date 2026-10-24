@@ -4,6 +4,7 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -143,14 +144,25 @@ void main() {
   });
 
   // ...........................................................................
-  void mockPanaResult(String json) {
+  void mockPanaResult(String json, {int exitCode = 0, String stderr = ''}) {
     when(
       () => processWrapper.run(panaCmd, [
         '--no-warning',
         '--json',
         '--no-dartdoc',
       ], workingDirectory: d.path),
-    ).thenAnswer((_) async => ProcessResult(0, 0, json, ''));
+    ).thenAnswer((_) async => ProcessResult(0, exitCode, json, stderr));
+  }
+
+  // ...........................................................................
+  /// The message of the exception the pana run throws.
+  Future<String> panaError() async {
+    try {
+      await runner.run(['pana', '--input', d.path]);
+    } catch (e) {
+      return rmControls(e.toString());
+    }
+    fail('pana did not fail');
   }
 
   // ...........................................................................
@@ -175,7 +187,10 @@ void main() {
               'toString()',
               allOf(
                 startsWith('Exception: Pana failed in ${d.path}\n'),
-                contains('FormatException: Unexpected end of input'),
+                contains(
+                  'pana printed no valid JSON report (exit code 0): '
+                  'FormatException: Unexpected end of input',
+                ),
               ),
             ),
           ),
@@ -184,6 +199,80 @@ void main() {
         // Check result
         expect(messages[0], contains('⌛️ Running pana'));
         expect(messages[1], contains('✗ Running pana'));
+      });
+
+      test('when pana prints JSON that is no report', () async {
+        // The JSON parses, so today's message stays.
+        mockPanaResult('{"foo": "bar"}');
+
+        expect(await panaError(), contains('Error parsing pana output'));
+      });
+
+      group('when pana prints no report', () {
+        test('with the SEVERE and SHOUT records of its log', () async {
+          // pana 0.23.17+ on Windows: the sandbox check rejects the »:« of
+          // every temp folder, stdout stays empty, and the reason is only in
+          // the JSON log pana writes to stderr.
+          final stderr = [
+            {'level': 'INFO', 'message': 'Checking pubspec'},
+            {
+              'logName': 'pana',
+              'level': 'SEVERE',
+              'message': 'Sandbox output folder must not contain ":"',
+              'stackTrace': '#0 SandboxRunner.runSandboxed',
+            },
+            {
+              'level': 'SHOUT',
+              'message': 'Unexpected error',
+              'error':
+                  "LateInitializationError: Local 'repo' has not been "
+                  'initialized.\nsecond line of the error',
+              'stackTrace': '#0 main',
+            },
+          ].map(jsonEncode).join('\n');
+          mockPanaResult('', exitCode: 1, stderr: stderr);
+
+          final error = await panaError();
+
+          expect(
+            error,
+            allOf(
+              startsWith('Exception: Pana failed in ${d.path}\n'),
+              contains('pana printed no JSON report (exit code 1).'),
+              contains('SEVERE: Sandbox output folder must not contain ":"'),
+              contains(
+                'SHOUT: Unexpected error — '
+                "LateInitializationError: Local 'repo' has not been "
+                'initialized.',
+              ),
+            ),
+          );
+          // Only what names the failure: no stack traces, no other records,
+          // no further lines of an error.
+          expect(error, isNot(contains('#0')));
+          expect(error, isNot(contains('Checking pubspec')));
+          expect(error, isNot(contains('second line of the error')));
+        });
+
+        test('with the last lines of a stderr without log records', () async {
+          final stderr = [
+            '{broken',
+            'early',
+            for (var i = 0; i < 10; i++) 'late $i',
+          ].join('\n');
+          mockPanaResult('', exitCode: 255, stderr: stderr);
+
+          final error = await panaError();
+
+          expect(
+            error,
+            contains('pana printed no JSON report (exit code 255).'),
+          );
+          expect(error, contains('late 0\n'));
+          expect(error, endsWith('late 9'));
+          expect(error, isNot(contains('early')));
+          expect(error, isNot(contains('{broken')));
+        });
       });
     });
 

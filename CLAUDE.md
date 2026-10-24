@@ -32,6 +32,10 @@ The checks layer does not depend on the state kernel (no `GgState`, no `CommandC
 
 Pana measures a package against what it published: it resolves the `repository:` URL and expects to find the package on the **default branch** at the version pub.dev serves. Before the first release neither side of that comparison exists — the feature branch was never merged, no tag was ever written — and pana reports problems the package itself cannot fix, which used to block `can publish` on exactly the release that would have fixed them. `Pana.get` therefore asks two questions first: **is there a version on pub.dev**, and **does this repository carry a version tag for that version**? Only a yes to both means a full release cycle happened here; anything else skips pana (»Skipping pana (not on pub.dev yet)« / »Skipping pana (no git tag `<version>`)«) instead of failing. The tags of the whole repository are consulted, not the ones on HEAD — pana runs from the feature branch, while the release was tagged on the default branch. The gate is unconditional: unlike `--published-only`, which only asks whether pub.dev is a *target* at all, this asks whether the package ever *arrived* there. Both `PublishedVersion` and `FromGit` are constructor-injectable, so tests decide the answers without touching the network.
 
+#### A pana run without a report names its exit code and stderr
+
+pana prints its report as JSON to stdout and its log to stderr — with `--json` one JSON record per line (`level`, `message`, optionally `error` and `stackTrace`). When pana fails before the report, stdout stays empty and the reason is only in the exit code and stderr: pana 0.23.17 and later, for example, rejects every Windows temp folder as a sandbox output folder (»Sandbox output folder must not contain ":"«) and then dies with a `LateInitializationError`. `_task` therefore tells two cases apart. **Stdout holds no JSON object** (no `{`, or `jsonDecode` fails): the error reads »pana printed no JSON report (exit code N).« (»no valid JSON report (exit code N): <FormatException>« for a broken one), followed by the SEVERE and SHOUT records of the log as `LEVEL: message — first line of error` — stack traces, other levels and further error lines are left out. A stderr without such records is shown by its last ten lines. **The JSON parses** but lacks what the scoring reads: »Error parsing pana output: …« as before. gg never installs or upgrades a specific pana version; it only activates pana when none is installed.
+
 ### State caching and command bases
 
 ### State caching (`GgState`)
@@ -72,8 +76,8 @@ comes next:
 @doc/guides/for-ai/ai-dev-guide.md
 
 The steps are also available as skills: `/gg-ticket`, `/gg-commit`,
-`/gg-push`, `/gg-publish`, `/gg-cleanup`. `/gg` lists them and says which
-one comes next.
+`/gg-push`, `/gg-review`, `/gg-publish`, `/gg-cleanup`. `/gg` lists them
+and says which one comes next.
 
 <!-- helix:claude_md:end -->
 

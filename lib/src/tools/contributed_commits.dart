@@ -107,8 +107,13 @@ class ContributedCommits {
         // a non-gg file therefore carries user work and blocks the skip.
         // An empty »#gg: « commit names no file and stays bookkeeping — gg
         // wrote it, so there is nothing to attribute to anybody else.
+        // The DNA commits exactly what it generated, and lists it: in its
+        // own commit, the files of that list are bookkeeping too.
+        final dnaFiles = subject == ggGeneratedDnaMessage
+            ? await _dnaGeneratedPaths(hash, directory)
+            : const <String>{};
         final swallowedFile = files.firstWhere(
-          (file) => !isGgOwnedPath(file),
+          (file) => !isGgOwnedPath(file) && !dnaFiles.contains(file),
           orElse: () => '',
         );
         if (swallowedFile.isNotEmpty) {
@@ -338,6 +343,50 @@ class ContributedCommits {
       allowFailure: true,
     );
     return hash.isEmpty ? null : hash;
+  }
+
+  // ...........................................................................
+  /// The list of the files the DNA generates.
+  static const String _dnaGeneratedFile = 'dna/_generated.json';
+
+  /// The files the DNA lists as generated in [_dnaGeneratedFile] after the
+  /// DNA commit [hash] or before it — so that a file the DNA removed counts
+  /// too —, that list itself, and `CLAUDE.md` when the DNA writes its block
+  /// there. A list that is missing or unreadable names nothing: what it
+  /// cannot prove generated stays work.
+  Future<Set<String>> _dnaGeneratedPaths(String hash, Directory repoDir) async {
+    final result = <String>{_dnaGeneratedFile};
+    // `~1`, not `^`: cmd.exe, which runs git on Windows, eats the caret.
+    for (final rev in [hash, '$hash~1']) {
+      final content = (await _runGit(
+        <String>['show', '$rev:$_dnaGeneratedFile'],
+        repoDir: repoDir,
+        allowFailure: true,
+      )).replaceFirst(_byteOrderMark, '');
+      final Object? generated;
+      try {
+        generated = jsonDecode(content);
+      } on FormatException {
+        continue;
+      }
+      if (generated is! Map) {
+        continue;
+      }
+      final instances = generated['instances'];
+      if (instances is List) {
+        for (final instance in instances) {
+          final path = instance is Map ? instance['path'] : null;
+          if (path is String) {
+            result.add(path);
+          }
+        }
+      }
+      final claude = generated['claude'];
+      if (claude is Map && claude['claudeMdFromDna'] == true) {
+        result.add('CLAUDE.md');
+      }
+    }
+    return result;
   }
 
   // ...........................................................................

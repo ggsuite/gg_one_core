@@ -228,18 +228,25 @@ class Pana extends DirCommand<void> {
       '--no-dartdoc', // dartdoc is enforced using analysis_options.yaml
     ], workingDirectory: dir.path);
 
-    try {
-      // pana may print progress (e.g. "Resolving dependencies...") to stdout
-      // before the JSON payload on a cold run. Skip any such preamble and
-      // parse from the first object brace so a valid report is not rejected.
-      final rawOutput = result.stdout.toString();
-      final braceIndex = rawOutput.indexOf('{');
-      final jsonString = braceIndex >= 0
-          ? rawOutput.substring(braceIndex)
-          : rawOutput;
+    // pana may print progress (e.g. "Resolving dependencies...") to stdout
+    // before the JSON payload on a cold run. Skip any such preamble and
+    // parse from the first object brace so a valid report is not rejected.
+    final rawOutput = result.stdout.toString();
+    final braceIndex = rawOutput.indexOf('{');
+    if (braceIndex < 0) {
+      return (1, _noReport(result), <String>[]);
+    }
 
+    final Map<String, dynamic> jsonOutput;
+    try {
+      jsonOutput =
+          jsonDecode(rawOutput.substring(braceIndex)) as Map<String, dynamic>;
+    } catch (e) {
+      return (1, _noReport(result, reason: '$e'), <String>[]);
+    }
+
+    try {
       // Parse the JSON output to get the score
-      final jsonOutput = jsonDecode(jsonString) as Map<String, dynamic>;
       final allowedMissingPoints = _ignoreMissingVersionInChangeLog(jsonOutput);
       final grantedPoints = jsonOutput['scores']['grantedPoints'];
       final maxPoints =
@@ -260,6 +267,77 @@ class Pana extends DirCommand<void> {
       return (1, ['Error parsing pana output: $e'], <String>[]);
     }
   }
+
+  // ...........................................................................
+  /// Explains a pana run whose stdout carries no JSON report.
+  ///
+  /// pana prints its report to stdout and its log to stderr. When it fails
+  /// before the report, stdout stays empty and only the exit code and stderr
+  /// say why — pana 0.23.17 and later, for example, rejects every Windows
+  /// temp folder as a sandbox output folder because the path contains »:«.
+  List<String> _noReport(ProcessResult result, {String? reason}) => [
+    reason == null
+        ? 'pana printed no JSON report (exit code ${result.exitCode}).'
+        : 'pana printed no valid JSON report '
+              '(exit code ${result.exitCode}): $reason',
+    ..._stderrProblems('${result.stderr}'),
+  ];
+
+  // ...........................................................................
+  /// The part of pana's stderr worth showing when it printed no report.
+  ///
+  /// With `--json` pana logs one JSON record per line. Its SEVERE and SHOUT
+  /// records name the failure; their stack traces are left out. A stderr
+  /// without such records is shown by its last [_stderrTailLength] lines.
+  static List<String> _stderrProblems(String stderr) {
+    final lines = const LineSplitter()
+        .convert(stderr)
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+
+    final problems = <String>[];
+    for (final line in lines) {
+      final record = _logRecord(line);
+      final level = record?['level'];
+      if (level != 'SEVERE' && level != 'SHOUT') {
+        continue;
+      }
+
+      final message = '${record!['message'] ?? ''}'.trim();
+      final error = '${record['error'] ?? ''}'.split('\n').first.trim();
+      final text = [
+        if (message.isNotEmpty) message,
+        if (error.isNotEmpty && error != message) error,
+      ].join(' — ');
+      problems.add('$level: $text');
+    }
+
+    if (problems.isNotEmpty) {
+      return problems;
+    }
+
+    return lines.length > _stderrTailLength
+        ? lines.sublist(lines.length - _stderrTailLength)
+        : lines;
+  }
+
+  // ...........................................................................
+  /// One record of pana's JSON log, or null when [line] is none.
+  static Map<String, dynamic>? _logRecord(String line) {
+    if (!line.startsWith('{')) {
+      return null;
+    }
+
+    try {
+      return jsonDecode(line) as Map<String, dynamic>;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// How many of its last lines a stderr without log records is shown by.
+  static const int _stderrTailLength = 10;
 
   // ...........................................................................
   bool? get _publishedOnlyFromArgs => argResults?['published-only'] as bool?;

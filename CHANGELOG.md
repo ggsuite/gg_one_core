@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add the blog post of ticket gg-1
+
+### Changed
+
+- Count the DNA's generated files as gg's own in its commit
+- Upgrade the dependencies
+- Report pana's exit code and stderr without a report
+
 ## 2.14.0 - 2026-10-19
 
 ### Changed

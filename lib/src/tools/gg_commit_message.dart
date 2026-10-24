@@ -21,6 +21,15 @@ const String ggCommitPrefix = '#gg: ';
 /// published«. Producer and reader share the constant so the two cannot drift.
 const String ggMergeBackPrefix = '${ggCommitPrefix}merge the published ';
 
+/// The subject of the commit in which the DNA engine (helix) commits what it
+/// generated.
+///
+/// It commits exactly the paths it wrote — the instances `dna/_generated.json`
+/// lists, that list itself and, when the DNA manages its block there,
+/// `CLAUDE.md` — so those files are bookkeeping in this commit. The engine
+/// writes the subject, gg only reads it.
+const String ggGeneratedDnaMessage = '${ggCommitPrefix}generated DNA';
+
 /// Commit subjects gg versions before [ggCommitPrefix] created on a feature
 /// branch.
 ///

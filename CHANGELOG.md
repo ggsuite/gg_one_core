@@ -2,16 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Add the blog post of ticket gg-1
+
 ### Changed
 
 - Count the DNA's generated files as gg's own in its commit
 - Upgrade the dependencies
 - Report pana's exit code and stderr without a report
-
-When stdout holds no JSON object, the error names pana's exit code
-It lists the SEVERE and SHOUT records of pana's log without stack traces
-A stderr without log records is shown by its last ten lines
-JSON that parses keeps the message Error parsing pana output
 
 ## 2.14.0 - 2026-10-19
 

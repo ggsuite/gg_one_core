@@ -31,7 +31,7 @@ dependencies:
   yaml: ^3.1.4
 
 dev_dependencies:
-  dna_ggsuite: ^0.5.0
+  dna_ggsuite: ^1.0.0
   gg_capture_print: ^1.2.0
   helix: ^1.13.0
   lints: ^6.1.0

@@ -297,6 +297,22 @@ void main() {
             isNull,
           );
         });
+        test('when a gg commit adds a manifest without a pub '
+            'workspace', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await commit(
+            dir,
+            path.join('packages', 'b', 'pubspec.yaml'),
+            'name: b\n',
+            '#gg: changed references to path',
+          );
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            isNull,
+          );
+        });
       });
 
       group('returns a reason', () {
@@ -441,6 +457,37 @@ void main() {
               );
             });
           }
+        });
+
+        group('for a gg commit that changes the pub workspace', () {
+          // Joining example/ into the pub workspace is permanent, unlike the
+          // overrides. It has to reach main - a skipped publish would drop it.
+          test('naming the manifest that joins the workspace', () async {
+            final dir = await createRepo();
+            await commit(
+              dir,
+              path.join('example', 'pubspec.yaml'),
+              'name: a_example\ndependencies:\n  a:\n    path: ..\n',
+              'Add example',
+            );
+            await git(dir, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+            await git(dir, ['checkout', '-b', 'feat']);
+            File(path.join(dir.path, 'pubspec.yaml'))
+                .writeAsStringSync('name: a\nworkspace:\n  - example\n');
+            await commit(
+              dir,
+              path.join('example', 'pubspec.yaml'),
+              'name: a_example\nresolution: workspace\n'
+                  'dependencies:\n  a:\n    path: ..\n',
+              '#gg: changed references to path',
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              'the gg commit »#gg: changed references to path« changes the '
+              'pub workspace of »example/pubspec.yaml«',
+            );
+          });
         });
 
         test('when there is no branch to compare against', () async {

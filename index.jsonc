@@ -1,0 +1,47 @@
+// @license
+// Copyright (c) ggsuite
+//
+// Use of this source code is governed by terms that can be
+// found in the LICENSE file in the root of this package.
+
+{
+  // The package name, as declared in pubspec.yaml / package.json.
+  "name": "gg_one_core",
+
+  // 1-2 sentence summary about this repo.
+  "summary": "Kernel of the gg_one tool family: state caching, command bases, the verification checks and the publish configuration shared by the single-repo commands.",
+
+  // 1-3 bullet points: the problem space.
+  "domain": [
+    "check state: .gg/gg.json, GgState, the checks behind gg can commit",
+    "gg bookkeeping commits: GgSystemCommit, the files gg owns, ContributedCommits telling them from manual work",
+    "publish configuration: gg-publish.json, pubspec_overrides backups",
+  ],
+
+  // The repos this one depends on and the repos depending on it.
+  // Keep the reason or the API behind each entry, not just the name.
+  "interfaces": {
+    // "<repo-a>": "why / API"
+    "uses": {
+      "gg_git": "git state: commits, branches, modified files",
+      "gg_lang": "language detection and lock file names",
+      "gg_test": "test and coverage checks",
+      "gg_publish": "published versions",
+      "gg_version": "version files and increments",
+      "gg_args": "DirCommand base of all commands",
+      "gg_status_printer": "progress output",
+      "gg_interact": "prompts",
+    },
+
+    // "<repo-b>": "why / API"
+    "usedBy": {
+      "gg_one": "the single-repo commands of gg",
+      "gg_one_commit": "can commit, do commit: GgState, Checks, IsCommitted",
+      "gg_one_do_publish": "publish: GgState, GgSystemCommit",
+      "gg_one_merge": "merge into main: GgSystemCommit",
+      "gg_multi_core": "PublishSkipCheck on top of ContributedCommits",
+      "gg_multi_commit": "can commit, do commit across the ticket",
+      "gg_create_repo": "runs the checks of a new repository",
+    },
+  },
+}

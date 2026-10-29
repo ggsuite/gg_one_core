@@ -13,7 +13,7 @@
 
   // 1-3 bullet points: the problem space.
   "domain": [
-    "kernel: GgState (.gg.json cache), DidCommand, CommandCluster, #gg: system commits, gg-owned files, commit messages",
+    "kernel: GgState (.gg.json cache), DidCommand, CommandCluster, #gg: system commits, gg-owned files, commit messages; ContributedCommits counts dependency and pub workspace changes in #gg: commits as work",
     "checks: analyze, format, build, pana, pub get offline, npm login, package.json scripts, no pubspec_overrides",
     "publish config: .gg/publish_config.json + publish_state.json, VersionSelector; MessageSheet: commit/merge messages + version increments of several repos as one JSONC file in the editor; gg do configure-publish uses it",
   ],

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.15.1 - 2026-10-29
+
+### Changed
+
+- Count pub workspace changes in gg commits as work
+
 ## 2.15.0 - 2026-10-29
 
 ### Changed

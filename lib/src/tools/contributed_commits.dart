@@ -34,8 +34,9 @@ import 'package:gg_one_core/src/tools/gg_state.dart';
 /// A `#gg:` commit counts as manual work when it touches a file gg does not
 /// own, or when it changes which dependencies a manifest offers its
 /// consumers (pubspec `dependencies`; package.json `dependencies`,
-/// `peerDependencies`, `optionalDependencies`). Constraint changes and dev
-/// dependencies stay bookkeeping.
+/// `peerDependencies`, `optionalDependencies`), or when it changes the pub
+/// workspace a pubspec declares (`workspace`, `resolution`). Constraint
+/// changes and dev dependencies stay bookkeeping.
 ///
 /// Every situation that cannot be judged reliably (missing git history,
 /// unreachable branch, unparsable manifest, …) counts as manual work:
@@ -47,6 +48,9 @@ class ContributedCommits {
 
   /// Runs the git commands used to inspect the repository history.
   final ProcessRunner _processRunner;
+
+  /// The file contents [_fileAt] read, by repository, revision and file.
+  final Map<String, String> _contents = <String, String>{};
 
   // ...........................................................................
   /// Returns why the commits [directory] contributes contain manual work, or
@@ -123,6 +127,13 @@ class ContributedCommits {
         );
         if (dependencyChange != null) {
           return 'the gg commit »$subject« $dependencyChange';
+        }
+
+        // So is joining an embedded package into the pub workspace: unlike
+        // the overrides, gg never reverts it.
+        final workspaceChange = await _workspaceChange(hash, files, directory);
+        if (workspaceChange != null) {
+          return 'the gg commit »$subject« $workspaceChange';
         }
       }
 
@@ -203,6 +214,43 @@ class ContributedCommits {
   }
 
   // ...........................................................................
+  /// Describes how commit [hash] changes the pub workspace declared by one of
+  /// the `pubspec.yaml` in [files] - its `workspace` list or its
+  /// `resolution` - or null when it leaves both alone.
+  Future<String?> _workspaceChange(
+    String hash,
+    List<String> files,
+    Directory repoDir,
+  ) async {
+    for (final file in files) {
+      if (file.split('/').last != 'pubspec.yaml') {
+        continue;
+      }
+      final before = await _workspaceDeclaration('$hash~1', file, repoDir);
+      final after = await _workspaceDeclaration(hash, file, repoDir);
+      if (before != after) {
+        return 'changes the pub workspace of »$file«';
+      }
+    }
+    return null;
+  }
+
+  // ...........................................................................
+  /// The `workspace` list and the `resolution` of the `pubspec.yaml` [file]
+  /// at revision [rev], encoded for comparison. A missing file declares
+  /// neither. An unparsable one never gets here: [_dependencyChange] reports
+  /// it first.
+  Future<String> _workspaceDeclaration(
+    String rev,
+    String file,
+    Directory repoDir,
+  ) async {
+    final parsed = loadYaml(await _fileAt(rev, file, repoDir));
+    final manifest = parsed is Map ? parsed : const <Object?, Object?>{};
+    return jsonEncode(<Object?>[manifest['workspace'], manifest['resolution']]);
+  }
+
+  // ...........................................................................
   /// The names [sections] of manifest [file] declare at revision [rev]:
   /// none for a missing file, null for an unparsable one, which the caller
   /// counts as a change — undecidable means work.
@@ -212,14 +260,7 @@ class ContributedCommits {
     List<String> sections,
     Directory repoDir,
   ) async {
-    // A manifest saved with a UTF-8 BOM starts with U+FEFF or — decoded
-    // with the Windows code page — with »ï»¿«. Either makes jsonDecode
-    // fail, and an unreadable manifest would count as work.
-    final content = (await _runGit(
-      <String>['show', '$rev:$file'],
-      repoDir: repoDir,
-      allowFailure: true,
-    )).replaceFirst(_byteOrderMark, '');
+    final content = await _fileAt(rev, file, repoDir);
     final Object? manifest;
     try {
       manifest = file.endsWith('.json')
@@ -246,6 +287,24 @@ class ContributedCommits {
     }
     return result;
   }
+
+  // ...........................................................................
+  /// The content of [file] at revision [rev], empty for a missing file.
+  ///
+  /// Read once per revision and file: the dependency check and the workspace
+  /// check look at the same manifests, and every read spawns git. A revision
+  /// never changes its content, so the cache cannot go stale.
+  Future<String> _fileAt(String rev, String file, Directory repoDir) async =>
+      _contents['${repoDir.path}|$rev:$file'] ??=
+          (await _runGit(
+            <String>['show', '$rev:$file'],
+            repoDir: repoDir,
+            allowFailure: true,
+          ))
+          // A manifest saved with a UTF-8 BOM starts with U+FEFF or — decoded
+          // with the Windows code page — with »ï»¿«. Either makes jsonDecode
+          // fail, and an unreadable manifest would count as work.
+          .replaceFirst(_byteOrderMark, '');
 
   // ...........................................................................
   /// The repo-relative paths commit [hash] changes, as git prints them.

@@ -6,6 +6,12 @@
 
 - Count pub workspace changes in gg commits as work
 
+## 2.15.0 - 2026-10-29
+
+### Changed
+
+- Edit commit messages, merge messages and version increments of all repos in one JSON file in VS Code
+
 ## 2.14.0 - 2026-10-19
 
 ### Changed

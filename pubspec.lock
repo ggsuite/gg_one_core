@@ -149,18 +149,18 @@ packages:
     dependency: transitive
     description:
       name: dna_gg
-      sha256: cf3f947ce5fa8c1f1bea382584a642cd3b3cf56a862887a3866db9a6568c2948
+      sha256: a57431385f8391ac08e1b1c71f15de04f231faea9b1277d01f19291ffc480e16
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.0"
+    version: "1.1.0"
   dna_ggsuite:
     dependency: "direct dev"
     description:
       name: dna_ggsuite
-      sha256: "55dfa42deaa31552d6861385be4d295413e905d47a960a1884b307fc47d357c5"
+      sha256: ab83b121477005dae6f503e1097f4a26d908ea876f1c71f9724efae2b763f168
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "1.0.0"
   dna_github:
     dependency: transitive
     description:
@@ -301,10 +301,10 @@ packages:
     dependency: "direct main"
     description:
       name: gg_interact
-      sha256: "03cb7f952ea01f52c92c7ad632b63dc5999b76274eb7b094d86cf0bc2df5d04e"
+      sha256: "71ad34a05c00a6efb9bbd6628b1bff8b20707eec6365f6af5b5b6cf7f4f52ece"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.2"
+    version: "0.1.0"
   gg_is_flutter:
     dependency: "direct main"
     description:

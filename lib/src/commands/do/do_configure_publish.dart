@@ -11,6 +11,7 @@ import 'package:gg_args/gg_args.dart';
 import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_git/gg_git.dart';
 import 'package:gg_log/gg_log.dart';
+import 'package:gg_publish/gg_publish.dart' show VersionIncrement;
 import 'package:gg_version/gg_version.dart';
 import 'package:path/path.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -19,6 +20,7 @@ import '../../tools/ensure_publish_config_ignored.dart';
 
 import 'package:gg_interact/gg_interact.dart';
 
+import '../../tools/message_sheet.dart';
 import '../../tools/publish_config.dart';
 import '../../tools/publish_files.dart';
 import '../../tools/publish_state.dart';
@@ -58,6 +60,7 @@ class DoConfigurePublish extends DirCommand<void> {
     ConfirmDeleteFeatureBranch? confirmDeleteFeatureBranch,
     LocalBranch? localBranch,
     EnsurePublishConfigIgnored? ensureIgnored,
+    EditText? editText,
     // coverage:ignore-start
   }) : _versionSelector = versionSelector ?? VersionSelector(),
        _fromPubspec = fromPubspec ?? FromPubspec(ggLog: ggLog),
@@ -66,7 +69,8 @@ class DoConfigurePublish extends DirCommand<void> {
            confirmDeleteFeatureBranch ?? defaultConfirmDeleteFeatureBranch,
        _localBranch = localBranch ?? LocalBranch(ggLog: ggLog),
        _ensureIgnored =
-           ensureIgnored ?? EnsurePublishConfigIgnored(ggLog: ggLog) {
+           ensureIgnored ?? EnsurePublishConfigIgnored(ggLog: ggLog),
+       _editText = editText ?? defaultEditText {
     // coverage:ignore-end
     _addArgs();
   }
@@ -77,6 +81,7 @@ class DoConfigurePublish extends DirCommand<void> {
   final ConfirmDeleteFeatureBranch _confirmDeleteFeatureBranch;
   final LocalBranch _localBranch;
   final EnsurePublishConfigIgnored _ensureIgnored;
+  final EditText _editText;
 
   /// Returns the `.gg/publish_config.json` file for [repoDir].
   static File configFileFor(Directory repoDir) =>
@@ -147,30 +152,51 @@ class DoConfigurePublish extends DirCommand<void> {
 
     await _ensureIgnored.ensure(directory: directory);
 
+    final seed =
+        existing.config.mergeMessage?.trim() ??
+        readTicketDescriptionForRepo(directory)?.trim() ??
+        '';
+    final fallbackMessage = seed.isEmpty
+        ? 'Publish ${basename(directory.path)}'
+        : seed;
+
     // A merge-only run releases nothing: no version bump, no changelog
     // heading, no tag. Asking for an increment would offer a version that is
     // never created, so the prompt is skipped and no increment is stored.
+    final askIncrement = !mergeOnly && versionIncrement == null;
+    final askMessage = (mergeMessage?.trim() ?? '').isEmpty;
+
+    final currentVersion = askIncrement
+        ? await _currentVersion(directory)
+        : null;
+
+    // Both questions on one sheet in the editor, when there is one.
+    final sheet = askIncrement || askMessage
+        ? await _editSheet(
+            repo: basename(directory.path),
+            increment: askIncrement
+                ? existing.config.versionIncrement ?? VersionIncrement.patch
+                : null,
+            baseline: currentVersion,
+            message: askMessage ? fallbackMessage : null,
+          )
+        : null;
+
     final increment = mergeOnly
         ? null
         : versionIncrement != null
         ? parseVersionIncrement(versionIncrement)
-        : await _versionSelector.selectIncrement(
-            currentVersion: await _currentVersion(directory),
-            preselect: existing.config.versionIncrement,
-          );
+        : sheet?.versionIncrement ??
+              await _versionSelector.selectIncrement(
+                currentVersion: currentVersion!,
+                preselect: existing.config.versionIncrement,
+              );
 
     var message = mergeMessage?.trim() ?? '';
     if (message.isEmpty) {
-      final seed =
-          existing.config.mergeMessage?.trim() ??
-          readTicketDescriptionForRepo(directory)?.trim() ??
-          '';
-      message = (await _editMessage(seed) ?? '').trim();
+      message = sheet?.mergeMessage ?? (await _editMessage(seed) ?? '').trim();
       if (message.isEmpty) {
-        message = seed;
-      }
-      if (message.isEmpty) {
-        message = 'Publish ${basename(directory.path)}';
+        message = fallbackMessage;
       }
     }
 
@@ -193,6 +219,34 @@ class DoConfigurePublish extends DirCommand<void> {
     await config.save(file: configFileFor(directory));
     await state.save(file: stateFileFor(directory));
     return (config: config, state: state);
+  }
+
+  /// Shows the version increment and the merge message — whichever of the
+  /// two is not null — in the editor, and returns what the user saved. Null
+  /// when no editor can be opened (also without a terminal); the questions
+  /// are then asked one by one.
+  Future<MessageSheetEntry?> _editSheet({
+    required String repo,
+    required VersionIncrement? increment,
+    required Version? baseline,
+    required String? message,
+  }) async {
+    final entries =
+        await MessageSheet(
+          entries: [
+            MessageSheetEntry(
+              repo: repo,
+              versionIncrement: increment,
+              mergeMessage: message,
+              baseline: baseline,
+            ),
+          ],
+        ).edit(
+          title: 'gg do configure-publish',
+          fileName: '${repo}_publish.jsonc',
+          editText: _editText,
+        );
+    return entries?.single;
   }
 
   /// Reads the version used as the baseline for the increment preview.

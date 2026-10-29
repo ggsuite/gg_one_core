@@ -71,8 +71,13 @@ void main() {
     _StubAdapter? adapter,
     EditMessage? editMessage,
     ConfirmDeleteFeatureBranch? confirmDeleteFeatureBranch,
+    EditText? editText,
   }) => DoConfigurePublish(
     ggLog: ggLog,
+    // No editor unless a test opens one: the questions are asked one by one.
+    editText:
+        editText ??
+        ({required prompt, required text, required fileName}) async => null,
     versionSelector: VersionSelector(
       adapter: adapter ?? _StubAdapter(increments),
     ),
@@ -117,6 +122,87 @@ void main() {
         ]);
       },
     );
+
+    group('message sheet', () {
+      late List<String> shownSheets;
+
+      EditText answering(String? Function(String text) answer) =>
+          ({required prompt, required text, required fileName}) async {
+            shownSheets.add(text);
+            expect(fileName, '${basename(d.path)}_publish.jsonc');
+            return answer(text);
+          };
+
+      setUp(() => shownSheets = []);
+
+      test('asks increment and merge message in the editor', () async {
+        File(join(d.path, 'ticket.json'))
+            .writeAsStringSync('{"description": "Ticket desc"}');
+        final repo = basename(d.path);
+
+        final config = await makeCommand(
+          editText: answering(
+            (_) =>
+                '{"$repo": {"versionIncrement": "major", '
+                '"mergeMessage": ["Edited", "Body"]}}',
+          ),
+        ).configure(directory: d, ggLog: ggLog);
+
+        expect(config.config.versionIncrement, VersionIncrement.major);
+        expect(config.config.mergeMessage, 'Edited\nBody');
+        // Neither the select nor the line editor was asked.
+        expect(capturedInitials, isEmpty);
+        expect(shownSheets.single, contains('"mergeMessage": ["Ticket desc"]'));
+        expect(shownSheets.single, contains('"versionIncrement": "patch"'));
+        expect(shownSheets.single, contains('1.2.3 → patch 1.2.4'));
+      });
+
+      test('shows only what is not preset', () async {
+        final config = await makeCommand(editText: answering((text) => text))
+            .configure(directory: d, ggLog: ggLog, versionIncrement: 'minor');
+
+        expect(config.config.versionIncrement, VersionIncrement.minor);
+        expect(config.config.mergeMessage, 'Publish ${basename(d.path)}');
+        expect(shownSheets.single, isNot(contains('versionIncrement')));
+      });
+
+      test('is not opened when everything is preset', () async {
+        await makeCommand(editText: answering((text) => text)).configure(
+          directory: d,
+          ggLog: ggLog,
+          versionIncrement: 'patch',
+          mergeMessage: 'msg',
+        );
+        expect(shownSheets, isEmpty);
+      });
+
+      test('lets an error of the editor through', () async {
+        await expectLater(
+          makeCommand(
+            editText: answering((_) => throw Exception('Editor failed')),
+          ).configure(directory: d, ggLog: ggLog),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('Editor failed'),
+            ),
+          ),
+        );
+        expect(capturedInitials, isEmpty);
+      });
+
+      test('falls back to the prompts without an editor', () async {
+        final config = await makeCommand(
+          increments: [2],
+          editText: answering((_) => null),
+        ).configure(directory: d, ggLog: ggLog);
+
+        expect(shownSheets, hasLength(1));
+        expect(config.config.versionIncrement, VersionIncrement.major);
+        expect(capturedInitials, hasLength(1));
+      });
+    });
 
     group('delete-feature-branch decision', () {
       test('asks with the current branch name and stores the answer', () async {

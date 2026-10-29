@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Checks** (`lib/src/commands/check/`, `tools/analyzer.dart`, `tools/formatter.dart`, `tools/checks.dart`): the individual verification steps and the `Checks` container that `can commit` / `can push` run through.
 - **Publish configuration** (`tools/repo_publish_config.dart`, `tools/publish_state.dart`, `tools/commit_message.dart`, `tools/publish_files.dart`, `tools/publish_config.dart`, `tools/version_selector.dart`, `tools/ensure_publish_config_ignored.dart`, `commands/do/do_configure_publish.dart`): everything around `.gg/publish_config.json` and `.gg/publish_state.json`. The two files split what used to be one: `publish_config.json` holds the **answers** (merge message, version increment, the AI-maintained `nextCommitMessage` and the recorded `commits`), `publish_state.json` the **run state** (status, done steps, branch, pr, channel, delete decisions, plus a copy of the merge message and increment the run started with — `do publish` deletes `publish_config.json` before its merge, and `loadRepoPublishFiles` fills the answers the config lacks from the state so a `--continue` asks nothing again) — so a `--restart` discards the run without discarding what the user chose. They are written in camelCase; the legacy snake_case `PublishConfig` is read-only now, bridged by `legacySplit(repoName)`, and `loadRepoPublishFiles` layers new over legacy without ever writing the old format again. `CommitMessage` owns the first-line rule (`validationError`): the first line must not be empty, its length is not limited (the former 60-character limit is gone; `maxCommitMessageFirstLineLength` is only kept, deprecated, for compatibility). The publish flow that consumes the config lives in `gg_one_do_publish` — its CLAUDE.md documents the end-to-end semantics.
 
+  **Message sheet** (`tools/message_sheet.dart`, `tools/jsonc.dart`, `tools/commit_sheet.dart`): instead of one prompt per question and repo, `gg do commit`, `gg do review`/`publish`/`configure-publish` (gg_multi) and `gg one do commit`/`configure-publish` show the commit messages, merge messages and version increments of all affected repos as **one `.jsonc` file** in the user's editor (`GgPrompts.editText` → `ExternalEditor` in gg_interact). The sheet is only a view: defaults come from each repo's `publish_config.json` (else the ticket description), a field left empty keeps its default, and the answers are written back per repo. An unreadable sheet is reopened with the reason (line:column) on top; closing it unchanged again or saving it empty aborts. `Jsonc.stripComments` is length-preserving so parse errors point into the user's text. `commitSheetEntry` builds the entry `do commit` shows; `RepoPublishConfig.withCommitAnswers` decides what is recorded — the commit only when one was made, a merge message only when it differs from the default shown (a bare default would freeze the ticket description), an edited commit message of a repo that was not committed becomes `nextCommitMessage`. Without an editor (`editText` null — no terminal, an embedder, no editor found) callers fall back to the per-question prompts; `--no-interactive` takes the defaults.
+
 ### gg's commit conventions live here
 
 `tools/gg_commit_message.dart` (the `#gg: ` prefix, the legacy subjects, `isGgGenerated`, the merge-back prefix `PublishSkipCheck` anchors on) and `tools/gg_owned_files.dart` (`ggOwnedFileNames`/`ggOwnedRootFiles`/`isGgOwnedPath`) hold gg's own conventions. They sit here rather than in `gg_git` because they are *application* knowledge — what gg calls its commits, which manifests and lock files its bookkeeping may touch — not git semantics. `gg_one_core` is the lowest layer that sees both `gg_git` and `gg_lang`, and it already hosts the sibling list `GgState.ignoreFiles`; a test pins the inclusion `ignoreFiles ⊆ gg-owned` so the two cannot drift.
@@ -63,17 +65,7 @@ All commands extend `DirCommand<T>` from `gg_args`. The primary logic lives in `
 
 <!-- helix:claude_md:start -->
 
-# gg workflow
-
-This repo is developed ticket by ticket with the `gg` CLI. Follow the
-development guide, it tells you when to ask the user and which command
-comes next:
-
-@doc/guides/for-ai/ai-dev-guide.md
-
-The steps are also available as skills: `/gg-ticket`, `/gg-commit`,
-`/gg-push`, `/gg-publish`, `/gg-cleanup`. `/gg` lists them and says which
-one comes next.
+@.claude/CLAUDE_dna_gg.md
 
 <!-- helix:claude_md:end -->
 

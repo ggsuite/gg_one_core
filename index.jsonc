@@ -1,0 +1,56 @@
+// @license
+// Copyright (c) ggsuite
+//
+// Use of this source code is governed by terms that can be
+// found in the LICENSE file in the root of this package.
+
+{
+  // The package name, as declared in pubspec.yaml / package.json.
+  "name": "gg_one_core",
+
+  // 1-2 sentence summary about this repo.
+  "summary": "Kernel of the gg_one tool family: state caching, command bases, checks, publish config, MessageSheet. Re-exports gg_interact.",
+
+  // 1-3 bullet points: the problem space.
+  "domain": [
+    "kernel: GgState (.gg.json cache), DidCommand, CommandCluster, #gg: system commits, gg-owned files, commit messages",
+    "checks: analyze, format, build, pana, pub get offline, npm login, package.json scripts, no pubspec_overrides",
+    "publish config: .gg/publish_config.json + publish_state.json, VersionSelector; MessageSheet: commit/merge messages + version increments of several repos as one JSONC file in the editor; gg do configure-publish uses it",
+  ],
+
+  // The repos this one depends on and the repos depending on it.
+  // Keep the reason or the API behind each entry, not just the name.
+  "interfaces": {
+    // "<repo-a>": "why / API"
+    "uses": {
+      "gg_interact": "prompts, re-exported; editText for MessageSheet, select for VersionSelector",
+      "gg_args": "DirCommand base of all commands",
+      "gg_git": "git state: IsCommitted, IsPushed, HeadMessage, LocalBranch, CommitCount",
+      "gg_publish": "VersionIncrement, PublishedVersion, IsPublished, PublishTo",
+      "gg_version": "FromPubspec, NoFutureVersions, IsVersioned",
+      "gg_test": "Tests, run by Checks",
+      "gg_lang": "language detection, manifests",
+      "gg_json": "JSON access in RepoPublishConfig",
+      "gg_direct_json": "DirectJson: .gg.json of GgState",
+      "gg_is_flutter": "flutter pub get in PubGetOffline",
+      "gg_is_github": "isGitHub in Formatter",
+      "gg_process": "process runner of the checks",
+      "gg_status_printer": "progress output",
+      "gg_console_colors": "colored output",
+      "gg_log": "GgLog",
+      "dna_ggsuite": "dev: DNA layer: guides, templates",
+      "helix": "dev: runDnaTest",
+    },
+
+    // "<repo-b>": "why / API"
+    "usedBy": {
+      "gg_one": "re-exports gg_one_core",
+      "gg_one_commit": "GgState, Checks, DidCommand, CommandCluster; MessageSheet for gg do commit",
+      "gg_one_merge": "GgState, GgSystemCommit, CommandCluster",
+      "gg_one_do_publish": "DoConfigurePublish, Checks, Pana, PublishState, RepoPublishConfig, GgState",
+      "gg_multi_core": "GgState, GgSystemCommit; MessageSheet, RepoPublishConfig, VersionSelector for PublishPlanner",
+      "gg_multi_commit": "MessageSheet, CommitMessage for gg do commit / do review",
+      "gg_create_repo": "TS build and prepublish scripts",
+    },
+  },
+}

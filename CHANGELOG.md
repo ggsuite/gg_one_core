@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.16.0 - 2026-10-30
+
+### Changed
+
+- Count the files a DNA run generates as gg's own in its commit, so a repo with nothing but DNA updates is skipped on publish
+
 ## 2.15.1 - 2026-10-29
 
 ### Changed

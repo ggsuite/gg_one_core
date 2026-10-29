@@ -75,6 +75,36 @@ void main() {
     await git(dir, ['commit', '-m', message]);
   }
 
+  // ...........................................................................
+  /// Commits what a DNA run writes in [dir]: [files] plus the manifest
+  /// listing [instances], under helix's commit message. [deleted] files are
+  /// removed in the same commit.
+  Future<void> commitDna(
+    Directory dir, {
+    Map<String, String> files = const {},
+    List<String> instances = const [],
+    List<String> deleted = const [],
+  }) async {
+    for (final entry in files.entries) {
+      File(path.join(dir.path, entry.key))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(entry.value);
+    }
+    for (final file in deleted) {
+      File(path.join(dir.path, file)).deleteSync();
+    }
+    await commit(
+      dir,
+      dnaManifestPath,
+      jsonEncode({
+        'instances': [
+          for (final instance in instances) {'path': instance},
+        ],
+      }),
+      ggGeneratedDnaMessage,
+    );
+  }
+
   group('ContributedCommits', () {
     group('manualCommitReason(directory)', () {
       group('returns null', () {
@@ -313,6 +343,48 @@ void main() {
             isNull,
           );
         });
+
+        group('when a DNA commit', () {
+          test('only writes what the DNA run generated', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commitDna(
+              dir,
+              files: {
+                'CLAUDE.md': 'managed block',
+                '.claude/skills/code/SKILL.md': 'skill',
+                'doc/guides/code-guide.md': 'guide',
+                'CHANGELOG.md': '# Changelog\n',
+              },
+              instances: [
+                '.claude/skills/code/SKILL.md',
+                'doc/guides/code-guide.md',
+              ],
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              isNull,
+            );
+          });
+
+          test('deletes an instance the manifest listed before', () async {
+            final dir = await createRepo();
+            await commitDna(
+              dir,
+              files: {'.claude/skills/old/SKILL.md': 'old'},
+              instances: ['.claude/skills/old/SKILL.md'],
+            );
+            await git(dir, ['update-ref', 'refs/remotes/origin/main', 'main']);
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commitDna(dir, deleted: ['.claude/skills/old/SKILL.md']);
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              isNull,
+            );
+          });
+        });
       });
 
       group('returns a reason', () {
@@ -488,6 +560,73 @@ void main() {
               'pub workspace of »example/pubspec.yaml«',
             );
           });
+        });
+
+        group('for a DNA commit', () {
+          test('naming a file its manifest does not list', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commitDna(
+              dir,
+              files: {'lib.dart': 'void main() {}', 'doc/a.md': 'a'},
+              instances: ['doc/a.md'],
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              'the gg commit »#gg: generated DNA« also changes »lib.dart«',
+            );
+          });
+
+          test('naming an instance in the dna folder it ships', () async {
+            final dir = await createRepo();
+            await git(dir, ['checkout', '-b', 'feat']);
+            await commitDna(
+              dir,
+              files: {'dna/doc/guide.md': 'guide'},
+              instances: ['dna/doc/guide.md'],
+            );
+
+            expect(
+              await contributedCommits.manualCommitReason(directory: dir),
+              contains('also changes »dna/doc/guide.md«'),
+            );
+          });
+
+          for (final (label, manifest) in [
+            ('lists none', '[]'),
+            ('is unreadable', '{'),
+          ]) {
+            test('naming the instances when the manifest $label', () async {
+              final dir = await createRepo();
+              await git(dir, ['checkout', '-b', 'feat']);
+              File(path.join(dir.path, 'doc', 'a.md'))
+                ..parent.createSync(recursive: true)
+                ..writeAsStringSync('a');
+              await commit(
+                dir,
+                dnaManifestPath,
+                manifest,
+                ggGeneratedDnaMessage,
+              );
+
+              expect(
+                await contributedCommits.manualCommitReason(directory: dir),
+                contains('also changes »doc/a.md«'),
+              );
+            });
+          }
+        });
+
+        test('for another gg commit writing generated DNA files', () async {
+          final dir = await createRepo();
+          await git(dir, ['checkout', '-b', 'feat']);
+          await commit(dir, 'CLAUDE.md', 'managed block', '#gg: dart pub get');
+
+          expect(
+            await contributedCommits.manualCommitReason(directory: dir),
+            contains('also changes »CLAUDE.md«'),
+          );
         });
 
         test('when there is no branch to compare against', () async {

@@ -5,6 +5,7 @@
 // found in the LICENSE file in the root of this package.
 
 import 'package:gg_one_core/gg_one_core.dart';
+import 'package:helix/helix.dart' as helix;
 import 'package:test/test.dart';
 
 void main() {
@@ -22,6 +23,13 @@ void main() {
         isGgGenerated('${ggMergeBackPrefix}main back into CDM-1685'),
         isTrue,
       );
+    });
+  });
+
+  group('ggGeneratedDnaMessage and dnaManifestPath', () {
+    test('match what helix writes', () {
+      expect(ggGeneratedDnaMessage, helix.generatedDnaCommitMessage);
+      expect(dnaManifestPath, helix.dnaGeneratedPath);
     });
   });
 

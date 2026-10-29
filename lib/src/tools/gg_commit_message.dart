@@ -21,6 +21,18 @@ const String ggCommitPrefix = '#gg: ';
 /// published«. Producer and reader share the constant so the two cannot drift.
 const String ggMergeBackPrefix = '${ggCommitPrefix}merge the published ';
 
+/// The message helix commits the files of a DNA run with.
+///
+/// helix commits exactly what the run wrote: the instances, the managed block
+/// of `CLAUDE.md` and its manifest [dnaManifestPath]. Mirrors helix's
+/// `generatedDnaCommitMessage` — helix is no dependency of this package, a
+/// test keeps the two in sync.
+const String ggGeneratedDnaMessage = '${ggCommitPrefix}generated DNA';
+
+/// The manifest of a DNA run, relative to the repository root. It lists the
+/// instances the run generated. Mirrors helix's `dnaGeneratedPath`.
+const String dnaManifestPath = 'dna/_generated.json';
+
 /// Commit subjects gg versions before [ggCommitPrefix] created on a feature
 /// branch.
 ///

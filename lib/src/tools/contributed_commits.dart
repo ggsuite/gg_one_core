@@ -32,8 +32,9 @@ import 'package:gg_one_core/src/tools/gg_state.dart';
 /// release.
 ///
 /// A `#gg:` commit counts as manual work when it touches a file gg does not
-/// own, or when it changes which dependencies a manifest offers its
-/// consumers (pubspec `dependencies`; package.json `dependencies`,
+/// own — for a DNA commit, one its run did not generate either — or when it
+/// changes which dependencies a manifest offers its consumers (pubspec
+/// `dependencies`; package.json `dependencies`,
 /// `peerDependencies`, `optionalDependencies`), or when it changes the pub
 /// workspace a pubspec declares (`workspace`, `resolution`). Constraint
 /// changes and dev dependencies stay bookkeeping.
@@ -111,12 +112,15 @@ class ContributedCommits {
         // a non-gg file therefore carries user work and blocks the skip.
         // An empty »#gg: « commit names no file and stays bookkeeping — gg
         // wrote it, so there is nothing to attribute to anybody else.
-        final swallowedFile = files.firstWhere(
-          (file) => !isGgOwnedPath(file),
-          orElse: () => '',
-        );
-        if (swallowedFile.isNotEmpty) {
-          return 'the gg commit »$subject« also changes »$swallowedFile«';
+        // A DNA commit additionally owns the files its run generated —
+        // read from its manifest only when gg's own files do not suffice.
+        var foreign = files.where((file) => !isGgOwnedPath(file));
+        if (foreign.isNotEmpty && subject == ggGeneratedDnaMessage) {
+          final generated = await _dnaGeneratedPaths(hash, directory);
+          foreign = foreign.where((file) => !generated.contains(file));
+        }
+        if (foreign.isNotEmpty) {
+          return 'the gg commit »$subject« also changes »${foreign.first}«';
         }
 
         // A dependency added to or removed from a manifest is user work.
@@ -177,6 +181,39 @@ class ContributedCommits {
     }
     return isIgnoredFile(filePath, GgState.ignoreFiles) ||
         isIgnoredFile(segments.last, GgState.ignoreFiles);
+  }
+
+  // ...........................................................................
+  /// The files the DNA commit [hash] may contain: the manifest, the managed
+  /// `CLAUDE.md` and every instance the manifest lists before or after the
+  /// commit — an instance the run deleted is only listed before.
+  ///
+  /// A DNA package publishes its `dna/` folder, so an instance below it
+  /// never counts. The manifest itself does: helix reads only the one of
+  /// the repository it runs in, never the one a layer ships. An unreadable
+  /// manifest lists no instance, which makes every instance in the commit
+  /// count as work.
+  Future<Set<String>> _dnaGeneratedPaths(String hash, Directory repoDir) async {
+    final result = <String>{dnaManifestPath, 'CLAUDE.md'};
+    for (final rev in [hash, '$hash~1']) {
+      final Object? manifest;
+      try {
+        manifest = jsonDecode(await _fileAt(rev, dnaManifestPath, repoDir));
+      } on FormatException {
+        continue;
+      }
+      final instances = manifest is Map ? manifest['instances'] : null;
+      if (instances is List) {
+        result.addAll(
+          instances
+              .whereType<Map<dynamic, dynamic>>()
+              .map((instance) => instance['path'])
+              .whereType<String>()
+              .where((instancePath) => !instancePath.startsWith('dna/')),
+        );
+      }
+    }
+    return result;
   }
 
   // ...........................................................................

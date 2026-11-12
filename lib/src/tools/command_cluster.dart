@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:gg_args/gg_args.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_console_colors/gg_console_colors.dart';
-import 'package:gg_one_core/src/tools/repo_gg_rc.dart';
+import 'package:gg_one_core/src/tools/gg_rc.dart';
 import 'package:gg_one_core/src/tools/gg_state.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
 
@@ -23,7 +23,7 @@ class CommandCluster extends DirCommand<void> {
     required super.description,
     required this.stateKey,
     required this.shortDescription,
-    this.skippable = false,
+    this.checksSetting,
     GgState? state,
   }) : _state = state ?? GgState(ggLog: ggLog) {
     _addArgs();
@@ -36,9 +36,11 @@ class CommandCluster extends DirCommand<void> {
   /// The state key used to save the state of the command cluster
   final String stateKey;
 
-  /// Whether `enableChecks: false` in `.gg/gg_rc.jsonc` skips the commands
-  /// and records success right away.
-  final bool skippable;
+  /// The repository setting that can switch the commands off, e.g.
+  /// [GgRc.commitChecks]. When it is `false` in the repository's
+  /// `.gg/gg_rc`, the commands are skipped and success is recorded right
+  /// away. Null: the commands always run.
+  final List<String>? checksSetting;
 
   // ...........................................................................
   @override
@@ -70,9 +72,16 @@ class CommandCluster extends DirCommand<void> {
       return;
     }
 
-    // Checks disabled in .gg/gg_rc.jsonc? Record success without running.
-    if (skippable && !RepoGgRc.read(directory).enableChecks) {
-      ggLog(cDetail('$shortDescription skipped: enableChecks is false.'));
+    // Switched off in the repository's .gg/gg_rc? Record success without
+    // running anything.
+    final setting = checksSetting;
+    if (setting != null && !GgRc.loadRepo(directory).flag(setting)) {
+      ggLog(
+        cDetail(
+          '$shortDescription skipped: '
+          '${GgRc.keyPath(setting)} is false in .gg/${GgRc.repoFileName}.',
+        ),
+      );
       await _state.writeSuccess(directory: directory, key: stateKey);
       return;
     }

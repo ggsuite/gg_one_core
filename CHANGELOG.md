@@ -12,6 +12,7 @@
 
 - Rename the settings file to .gg/gg_rc.jsonc
 - Rename GgRc to RepoGgRc and document read
+- Read ~/.gg_rc and .gg/gg_rc with one GgRc class
 
 ## 2.16.1 - 2026-11-06
 

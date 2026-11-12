@@ -9,7 +9,7 @@
   "name": "gg_one_core",
 
   // 1-2 sentence summary about this repo.
-  "summary": "Kernel of the gg_one tool family: state caching, command bases, checks, publish config, gg_rc.jsonc settings, MessageSheet. Re-exports gg_interact.",
+  "summary": "Kernel of the gg_one tool family: state caching, command bases, checks, publish config, GgRc settings (~/.gg_rc, .gg/gg_rc), MessageSheet. Re-exports gg_interact.",
 
   // 1-3 bullet points: the problem space.
   "domain": [
@@ -45,10 +45,10 @@
     // "<repo-b>": "why / API"
     "usedBy": {
       "gg_one": "re-exports gg_one_core",
-      "gg_one_commit": "GgState, Checks, DidCommand, CommandCluster; MessageSheet for gg do commit; RepoGgRc",
+      "gg_one_commit": "GgState, Checks, DidCommand, CommandCluster; MessageSheet for gg do commit; GgRc",
       "gg_one_merge": "GgState, GgSystemCommit, CommandCluster",
-      "gg_one_do_publish": "DoConfigurePublish, Checks, Pana, PublishState, RepoPublishConfig, GgState, RepoGgRc",
-      "gg_multi_core": "GgState, GgSystemCommit; MessageSheet, RepoPublishConfig, VersionSelector for PublishPlanner",
+      "gg_one_do_publish": "DoConfigurePublish, Checks, Pana, PublishState, RepoPublishConfig, GgState, GgRc",
+      "gg_multi_core": "GgState, GgSystemCommit; MessageSheet, RepoPublishConfig, VersionSelector for PublishPlanner; re-exports GgRc, ReadSettings",
       "gg_multi_commit": "MessageSheet, CommitMessage for gg do commit / do review",
       "gg_create_repo": "TS build and prepublish scripts",
     },

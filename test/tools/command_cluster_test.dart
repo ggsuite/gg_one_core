@@ -76,37 +76,39 @@ void main() {
   });
 
   group('CommandCluster', () {
-    group('with skippable == true', () {
+    group('with checksSetting', () {
       test('skips the commands when enableChecks is false', () async {
-        repoGgRcFile(d)
+        GgRc.repoFileOf(d)
           ..parent.createSync(recursive: true)
-          ..writeAsStringSync('{"enableChecks": false}');
+          ..writeAsStringSync('{"can": {"commit": {"checks": false}}}');
         final cluster = CommandCluster(
           ggLog: ggLog,
           commands: commands,
-          name: 'skippable',
+          name: 'commit',
           description: 'Skippable.',
           shortDescription: 'Skippable?',
           stateKey: 'skippable',
-          skippable: true,
+          checksSetting: GgRc.commitChecks,
         );
         await cluster.exec(directory: d, ggLog: ggLog);
-        expect(messages, ['Skippable? skipped: enableChecks is false.']);
+        expect(messages, [
+          'Skippable? skipped: can.commit.checks is false in .gg/gg_rc.',
+        ]);
       });
 
       test('runs the commands when enableChecks is true', () async {
         final cluster = CommandCluster(
           ggLog: ggLog,
           commands: commands,
-          name: 'skippable',
+          name: 'commit',
           description: 'Skippable.',
           shortDescription: 'Skippable?',
           stateKey: 'skippable',
-          skippable: true,
+          checksSetting: GgRc.commitChecks,
         );
         await cluster.exec(directory: d, ggLog: ggLog);
         expect(messages, ['isCommitted', 'isPushed', 'isUpgraded']);
-        expect(repoGgRcFile(d).existsSync(), isFalse);
+        expect(GgRc.repoFileOf(d).existsSync(), isFalse);
       });
     });
 

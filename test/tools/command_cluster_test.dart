@@ -76,6 +76,39 @@ void main() {
   });
 
   group('CommandCluster', () {
+    group('with skippable == true', () {
+      test('skips the commands when enableChecks is false', () async {
+        ggRcFile(d)
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('{"enableChecks": false}');
+        final cluster = CommandCluster(
+          ggLog: ggLog,
+          commands: commands,
+          name: 'skippable',
+          description: 'Skippable.',
+          shortDescription: 'Skippable?',
+          stateKey: 'skippable',
+          skippable: true,
+        );
+        await cluster.exec(directory: d, ggLog: ggLog);
+        expect(messages, ['Skippable? skipped: enableChecks is false.']);
+      });
+
+      test('runs the commands when enableChecks is true', () async {
+        final cluster = CommandCluster(
+          ggLog: ggLog,
+          commands: commands,
+          name: 'skippable',
+          description: 'Skippable.',
+          shortDescription: 'Skippable?',
+          stateKey: 'skippable',
+          skippable: true,
+        );
+        await cluster.exec(directory: d, ggLog: ggLog);
+        expect(messages, ['isCommitted', 'isPushed', 'isUpgraded']);
+      });
+    });
+
     group('exec(directory, log)', () {
       group('with force == false', () {
         test(

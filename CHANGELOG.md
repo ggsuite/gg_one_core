@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Add per-repo settings in .gg/ggrc.jsonc
+
 ## 2.16.1 - 2026-11-06
 
 ### Changed

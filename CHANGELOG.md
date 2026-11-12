@@ -4,7 +4,11 @@
 
 ### Added
 
-- Add per-repo settings in .gg/ggrc.jsonc
+- Add per-repo settings in .gg/gg_rc.jsonc
+
+### Changed
+
+- Rename the settings file to .gg/gg_rc.jsonc
 
 ## 2.16.1 - 2026-11-06
 

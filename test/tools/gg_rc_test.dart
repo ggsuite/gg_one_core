@@ -26,13 +26,13 @@ void main() {
       expect(ggRcFile(d).readAsStringSync(), GgRc.template);
       expect(
         File(p.join(d.path, '.gitignore')).readAsStringSync(),
-        '.gg/*\n!.gg/ggrc.jsonc\n!.gg/gg.json\n',
+        '.gg/*\n!.gg/gg_rc.jsonc\n!.gg/gg.json\n',
       );
 
       // A second load parses the template and keeps .gitignore
       expect(GgRc.load(d).upgradeMajorVersions, isTrue);
       expect(
-        '!.gg/ggrc.jsonc'.allMatches(
+        '!.gg/gg_rc.jsonc'.allMatches(
           File(p.join(d.path, '.gitignore')).readAsStringSync(),
         ),
         hasLength(1),

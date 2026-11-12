@@ -9,7 +9,7 @@
   "name": "gg_one_core",
 
   // 1-2 sentence summary about this repo.
-  "summary": "Kernel of the gg_one tool family: state caching, command bases, checks, publish config, ggrc.jsonc settings, MessageSheet. Re-exports gg_interact.",
+  "summary": "Kernel of the gg_one tool family: state caching, command bases, checks, publish config, gg_rc.jsonc settings, MessageSheet. Re-exports gg_interact.",
 
   // 1-3 bullet points: the problem space.
   "domain": [

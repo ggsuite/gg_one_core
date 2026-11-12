@@ -12,13 +12,13 @@ import 'package:path/path.dart' as p;
 import 'jsonc.dart';
 
 /// The name of the per-repository gg settings file inside `.gg`.
-const String ggRcFileName = 'ggrc.jsonc';
+const String ggRcFileName = 'gg_rc.jsonc';
 
-/// The `.gg/ggrc.jsonc` of the repository at [repoDir].
+/// The `.gg/gg_rc.jsonc` of the repository at [repoDir].
 File ggRcFile(Directory repoDir) =>
     File(p.join(repoDir.path, '.gg', ggRcFileName));
 
-/// The per-repository settings of gg, kept in `.gg/ggrc.jsonc`.
+/// The per-repository settings of gg, kept in `.gg/gg_rc.jsonc`.
 ///
 /// The file is tracked by git, so the settings apply to everyone working on
 /// the repository. Missing keys take their defaults.

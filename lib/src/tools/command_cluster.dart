@@ -36,7 +36,7 @@ class CommandCluster extends DirCommand<void> {
   /// The state key used to save the state of the command cluster
   final String stateKey;
 
-  /// Whether `enableChecks: false` in `.gg/ggrc.jsonc` skips the commands
+  /// Whether `enableChecks: false` in `.gg/gg_rc.jsonc` skips the commands
   /// and records success right away.
   final bool skippable;
 
@@ -70,7 +70,7 @@ class CommandCluster extends DirCommand<void> {
       return;
     }
 
-    // Checks disabled in .gg/ggrc.jsonc? Record success without running.
+    // Checks disabled in .gg/gg_rc.jsonc? Record success without running.
     if (skippable && !GgRc.load(directory).enableChecks) {
       ggLog(cDetail('$shortDescription skipped: enableChecks is false.'));
       await _state.writeSuccess(directory: directory, key: stateKey);

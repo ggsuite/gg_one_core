@@ -78,7 +78,7 @@ void main() {
   group('CommandCluster', () {
     group('with skippable == true', () {
       test('skips the commands when enableChecks is false', () async {
-        ggRcFile(d)
+        repoGgRcFile(d)
           ..parent.createSync(recursive: true)
           ..writeAsStringSync('{"enableChecks": false}');
         final cluster = CommandCluster(
@@ -106,7 +106,7 @@ void main() {
         );
         await cluster.exec(directory: d, ggLog: ggLog);
         expect(messages, ['isCommitted', 'isPushed', 'isUpgraded']);
-        expect(ggRcFile(d).existsSync(), isFalse);
+        expect(repoGgRcFile(d).existsSync(), isFalse);
       });
     });
 

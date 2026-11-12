@@ -16,21 +16,21 @@ void main() {
   setUp(() => d = Directory.systemTemp.createTempSync('gg_rc_test'));
   tearDown(() => d.deleteSync(recursive: true));
 
-  group('GgRc', () {
+  group('RepoGgRc', () {
     test('creates the file with defaults when missing', () {
       File(p.join(d.path, '.gitignore'))
           .writeAsStringSync('.gg/*\n!.gg/gg.json\n');
-      final rc = GgRc.load(d);
+      final rc = RepoGgRc.load(d);
       expect(rc.upgradeMajorVersions, isTrue);
       expect(rc.enableChecks, isTrue);
-      expect(ggRcFile(d).readAsStringSync(), GgRc.template);
+      expect(repoGgRcFile(d).readAsStringSync(), RepoGgRc.template);
       expect(
         File(p.join(d.path, '.gitignore')).readAsStringSync(),
         '.gg/*\n!.gg/gg_rc.jsonc\n!.gg/gg.json\n',
       );
 
       // A second load parses the template and keeps .gitignore
-      expect(GgRc.load(d).upgradeMajorVersions, isTrue);
+      expect(RepoGgRc.load(d).upgradeMajorVersions, isTrue);
       expect(
         '!.gg/gg_rc.jsonc'.allMatches(
           File(p.join(d.path, '.gitignore')).readAsStringSync(),
@@ -41,42 +41,42 @@ void main() {
 
     test('leaves .gitignore without .gg/* alone', () {
       File(p.join(d.path, '.gitignore')).writeAsStringSync('build/\n');
-      GgRc.load(d);
+      RepoGgRc.load(d);
       expect(File(p.join(d.path, '.gitignore')).readAsStringSync(), 'build/\n');
     });
 
     test('reads upgradeMajorVersions: false', () {
-      ggRcFile(d)
+      repoGgRcFile(d)
         ..parent.createSync(recursive: true)
         ..writeAsStringSync('{ // c\n "upgradeMajorVersions": false, }');
-      expect(GgRc.load(d).upgradeMajorVersions, isFalse);
+      expect(RepoGgRc.load(d).upgradeMajorVersions, isFalse);
     });
 
     test('reads enableChecks: false', () {
       expect(
-        GgRc.fromJsonString('{"enableChecks": false}').enableChecks,
+        RepoGgRc.fromJsonString('{"enableChecks": false}').enableChecks,
         isFalse,
       );
       expect(
-        () => GgRc.fromJsonString('{"enableChecks": "no"}'),
+        () => RepoGgRc.fromJsonString('{"enableChecks": "no"}'),
         throwsFormatException,
       );
     });
 
     test('read does not create the file', () {
-      expect(GgRc.read(d).enableChecks, isTrue);
-      expect(ggRcFile(d).existsSync(), isFalse);
+      expect(RepoGgRc.read(d).enableChecks, isTrue);
+      expect(repoGgRcFile(d).existsSync(), isFalse);
     });
 
     test('defaults missing keys', () {
-      expect(GgRc.fromJsonString('{}').upgradeMajorVersions, isTrue);
+      expect(RepoGgRc.fromJsonString('{}').upgradeMajorVersions, isTrue);
     });
 
     test('rejects invalid content', () {
-      expect(() => GgRc.fromJsonString('{'), throwsFormatException);
-      expect(() => GgRc.fromJsonString('[]'), throwsFormatException);
+      expect(() => RepoGgRc.fromJsonString('{'), throwsFormatException);
+      expect(() => RepoGgRc.fromJsonString('[]'), throwsFormatException);
       expect(
-        () => GgRc.fromJsonString('{"upgradeMajorVersions": 1}'),
+        () => RepoGgRc.fromJsonString('{"upgradeMajorVersions": 1}'),
         throwsFormatException,
       );
     });

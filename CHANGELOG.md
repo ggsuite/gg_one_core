@@ -11,6 +11,7 @@
 ### Changed
 
 - Rename the settings file to .gg/gg_rc.jsonc
+- Rename GgRc to RepoGgRc and document read
 
 ## 2.16.1 - 2026-11-06
 

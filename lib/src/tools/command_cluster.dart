@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:gg_args/gg_args.dart';
 import 'package:gg_log/gg_log.dart';
 import 'package:gg_console_colors/gg_console_colors.dart';
-import 'package:gg_one_core/src/tools/gg_rc.dart';
+import 'package:gg_one_core/src/tools/repo_gg_rc.dart';
 import 'package:gg_one_core/src/tools/gg_state.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
 
@@ -71,7 +71,7 @@ class CommandCluster extends DirCommand<void> {
     }
 
     // Checks disabled in .gg/gg_rc.jsonc? Record success without running.
-    if (skippable && !GgRc.read(directory).enableChecks) {
+    if (skippable && !RepoGgRc.read(directory).enableChecks) {
       ggLog(cDetail('$shortDescription skipped: enableChecks is false.'));
       await _state.writeSuccess(directory: directory, key: stateKey);
       return;

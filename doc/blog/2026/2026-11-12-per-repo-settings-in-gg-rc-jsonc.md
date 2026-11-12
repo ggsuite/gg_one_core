@@ -29,12 +29,12 @@ found in the LICENSE file in the root of this package.
 - The file is meant to be committed, unlike the runtime files in `.gg`
 - Checks can be switched off per command cluster, opt-in by the cluster
 
-## The GgRc class
+## The RepoGgRc class
 
-- `GgRc.read(dir)` reads the settings and falls back to the defaults
+- `RepoGgRc.read(dir)` reads the settings and falls back to the defaults
   without touching the disk
-- `GgRc.load(dir)` reads `.gg/gg_rc.jsonc` of a repository and creates it
-  from `GgRc.template` when it does not exist
+- `RepoGgRc.load(dir)` reads `.gg/gg_rc.jsonc` of a repository and creates it
+  from `RepoGgRc.template` when it does not exist
 - Two flags, both `true` by default:
   - `upgradeMajorVersions` — whether dependency upgrades may cross major
     versions
@@ -43,12 +43,12 @@ found in the LICENSE file in the root of this package.
   `Jsonc.stripComments`
 - A value that is no bool, or content that is no JSON object, throws a
   `FormatException` naming the file
-- `ggRcFile(dir)` and `ggRcFileName` expose the location
+- `repoGgRcFile(dir)` and `repoGgRcFileName` expose the location
 
 ## Keeping the file tracked
 
 - Repositories commonly ignore `.gg/*` and re-include `!.gg/gg.json`
-- When `GgRc` creates the file it adds `!.gg/gg_rc.jsonc` right below a
+- When `RepoGgRc` creates the file it adds `!.gg/gg_rc.jsonc` right below a
   `.gg/*` rule of the root `.gitignore`
 - A `.gitignore` without such a rule, or one that already re-includes the
   file, is left alone
@@ -57,7 +57,7 @@ found in the LICENSE file in the root of this package.
 
 - `CommandCluster` got a new constructor parameter `skippable`, false by
   default
-- A skippable cluster reads `enableChecks` with `GgRc.read`, which never
+- A skippable cluster reads `enableChecks` with `RepoGgRc.read`, which never
   creates the file; when it is false the commands
   are not run, a line `<shortDescription> skipped: enableChecks is false.`
   is logged and the success state is recorded

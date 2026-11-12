@@ -12,19 +12,19 @@ import 'package:path/path.dart' as p;
 import 'jsonc.dart';
 
 /// The name of the per-repository gg settings file inside `.gg`.
-const String ggRcFileName = 'gg_rc.jsonc';
+const String repoGgRcFileName = 'gg_rc.jsonc';
 
 /// The `.gg/gg_rc.jsonc` of the repository at [repoDir].
-File ggRcFile(Directory repoDir) =>
-    File(p.join(repoDir.path, '.gg', ggRcFileName));
+File repoGgRcFile(Directory repoDir) =>
+    File(p.join(repoDir.path, '.gg', repoGgRcFileName));
 
 /// The per-repository settings of gg, kept in `.gg/gg_rc.jsonc`.
 ///
 /// The file is tracked by git, so the settings apply to everyone working on
 /// the repository. Missing keys take their defaults.
-class GgRc {
+class RepoGgRc {
   /// Creates the settings.
-  const GgRc({this.upgradeMajorVersions = true, this.enableChecks = true});
+  const RepoGgRc({this.upgradeMajorVersions = true, this.enableChecks = true});
 
   /// Whether dependency upgrades may cross major versions
   /// (»dart pub upgrade --major-versions«, »pnpm update --latest«).
@@ -46,37 +46,40 @@ class GgRc {
       '}\n';
 
   /// The gitignore line that keeps the file tracked despite `.gg/*`.
-  static const String gitignoreNegation = '!.gg/$ggRcFileName';
+  static const String gitignoreNegation = '!.gg/$repoGgRcFileName';
 
   /// Reads the settings of [repoDir] without touching the disk: a missing
   /// file yields the defaults.
-  factory GgRc.read(Directory repoDir) {
-    final file = ggRcFile(repoDir);
-    if (!file.existsSync()) return const GgRc();
-    return GgRc.fromJsonString(file.readAsStringSync(), where: file.path);
+  factory RepoGgRc.read(Directory repoDir) {
+    final file = repoGgRcFile(repoDir);
+    if (!file.existsSync()) return const RepoGgRc();
+    return RepoGgRc.fromJsonString(file.readAsStringSync(), where: file.path);
   }
 
   /// Reads the settings of [repoDir]. Creates the file with its defaults
   /// when it does not exist yet.
-  factory GgRc.load(Directory repoDir) {
-    final file = ggRcFile(repoDir);
+  factory RepoGgRc.load(Directory repoDir) {
+    final file = repoGgRcFile(repoDir);
     if (!file.existsSync()) {
       create(repoDir);
     }
-    return GgRc.read(repoDir);
+    return RepoGgRc.read(repoDir);
   }
 
   /// Writes the default file into [repoDir] and makes sure a `.gg/*` rule
   /// in the root `.gitignore` does not hide it.
   static void create(Directory repoDir) {
-    final file = ggRcFile(repoDir);
+    final file = repoGgRcFile(repoDir);
     file.parent.createSync(recursive: true);
     file.writeAsStringSync(template);
     _unignore(repoDir);
   }
 
   /// Parses [raw]. [where] names the source in error messages.
-  factory GgRc.fromJsonString(String raw, {String where = ggRcFileName}) {
+  factory RepoGgRc.fromJsonString(
+    String raw, {
+    String where = repoGgRcFileName,
+  }) {
     final Object? json;
     try {
       json = jsonDecode(Jsonc.stripComments(raw));
@@ -95,7 +98,7 @@ class GgRc {
       return value;
     }
 
-    return GgRc(
+    return RepoGgRc(
       upgradeMajorVersions: flag('upgradeMajorVersions'),
       enableChecks: flag('enableChecks'),
     );

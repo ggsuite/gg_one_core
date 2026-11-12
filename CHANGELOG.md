@@ -6,6 +6,7 @@
 
 - Add per-repo settings in .gg/gg_rc.jsonc
 - Add blog post and README section for gg_rc.jsonc
+- Add GgRc.read, which never creates the file
 
 ### Changed
 

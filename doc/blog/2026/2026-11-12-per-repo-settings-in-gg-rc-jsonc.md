@@ -31,6 +31,8 @@ found in the LICENSE file in the root of this package.
 
 ## The GgRc class
 
+- `GgRc.read(dir)` reads the settings and falls back to the defaults
+  without touching the disk
 - `GgRc.load(dir)` reads `.gg/gg_rc.jsonc` of a repository and creates it
   from `GgRc.template` when it does not exist
 - Two flags, both `true` by default:
@@ -55,7 +57,8 @@ found in the LICENSE file in the root of this package.
 
 - `CommandCluster` got a new constructor parameter `skippable`, false by
   default
-- A skippable cluster reads `enableChecks`; when it is false the commands
+- A skippable cluster reads `enableChecks` with `GgRc.read`, which never
+  creates the file; when it is false the commands
   are not run, a line `<shortDescription> skipped: enableChecks is false.`
   is logged and the success state is recorded
 - Recording success keeps every gate that reads the state working, so the

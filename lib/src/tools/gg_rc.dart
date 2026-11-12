@@ -48,15 +48,22 @@ class GgRc {
   /// The gitignore line that keeps the file tracked despite `.gg/*`.
   static const String gitignoreNegation = '!.gg/$ggRcFileName';
 
+  /// Reads the settings of [repoDir] without touching the disk: a missing
+  /// file yields the defaults.
+  factory GgRc.read(Directory repoDir) {
+    final file = ggRcFile(repoDir);
+    if (!file.existsSync()) return const GgRc();
+    return GgRc.fromJsonString(file.readAsStringSync(), where: file.path);
+  }
+
   /// Reads the settings of [repoDir]. Creates the file with its defaults
   /// when it does not exist yet.
   factory GgRc.load(Directory repoDir) {
     final file = ggRcFile(repoDir);
     if (!file.existsSync()) {
       create(repoDir);
-      return const GgRc();
     }
-    return GgRc.fromJsonString(file.readAsStringSync(), where: file.path);
+    return GgRc.read(repoDir);
   }
 
   /// Writes the default file into [repoDir] and makes sure a `.gg/*` rule

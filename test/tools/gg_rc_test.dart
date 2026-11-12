@@ -63,6 +63,11 @@ void main() {
       );
     });
 
+    test('read does not create the file', () {
+      expect(GgRc.read(d).enableChecks, isTrue);
+      expect(ggRcFile(d).existsSync(), isFalse);
+    });
+
     test('defaults missing keys', () {
       expect(GgRc.fromJsonString('{}').upgradeMajorVersions, isTrue);
     });

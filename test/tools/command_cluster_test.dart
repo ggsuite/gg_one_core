@@ -106,6 +106,7 @@ void main() {
         );
         await cluster.exec(directory: d, ggLog: ggLog);
         expect(messages, ['isCommitted', 'isPushed', 'isUpgraded']);
+        expect(ggRcFile(d).existsSync(), isFalse);
       });
     });
 

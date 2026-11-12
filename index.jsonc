@@ -45,9 +45,9 @@
     // "<repo-b>": "why / API"
     "usedBy": {
       "gg_one": "re-exports gg_one_core",
-      "gg_one_commit": "GgState, Checks, DidCommand, CommandCluster; MessageSheet for gg do commit",
+      "gg_one_commit": "GgState, Checks, DidCommand, CommandCluster; MessageSheet for gg do commit; GgRc",
       "gg_one_merge": "GgState, GgSystemCommit, CommandCluster",
-      "gg_one_do_publish": "DoConfigurePublish, Checks, Pana, PublishState, RepoPublishConfig, GgState",
+      "gg_one_do_publish": "DoConfigurePublish, Checks, Pana, PublishState, RepoPublishConfig, GgState, GgRc",
       "gg_multi_core": "GgState, GgSystemCommit; MessageSheet, RepoPublishConfig, VersionSelector for PublishPlanner",
       "gg_multi_commit": "MessageSheet, CommitMessage for gg do commit / do review",
       "gg_create_repo": "TS build and prepublish scripts",

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.17.0 - 2026-11-12
+
+### Added
+
+- Add per-repo settings in .gg/gg_rc.jsonc
+- Add blog post and README section for gg_rc.jsonc
+- Add GgRc.read, which never creates the file
+
+### Changed
+
+- Rename the settings file to .gg/gg_rc.jsonc
+- Rename GgRc to RepoGgRc and document read
+- Read ~/.gg_rc and .gg/gg_rc with one GgRc class
+
 ## 2.16.1 - 2026-11-06
 
 ### Changed

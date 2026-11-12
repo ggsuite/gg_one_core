@@ -32,6 +32,7 @@ export 'src/tools/ensure_publish_config_ignored.dart';
 export 'src/tools/formatter.dart';
 export 'src/tools/gg_commit_message.dart';
 export 'src/tools/gg_owned_files.dart';
+export 'src/tools/gg_rc.dart';
 export 'src/tools/gg_state.dart';
 export 'src/tools/gg_system_commit.dart';
 export 'src/tools/jsonc.dart';

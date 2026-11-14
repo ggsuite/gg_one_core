@@ -5,16 +5,11 @@
 ### Added
 
 - Add runInParallel: tasks at once, logged in order
+- Add the blog post and describe parallel runs
 
-GgParallelism limits heavy, light and network tasks; heavy tasks run one at a time unless GG_PARALLEL says more
-A failing task can cancel the tasks after it; TaskSlots limits the heavy part of otherwise light tasks
-CommandCluster shields the state it records from a cancel
-Test runs that go at the same time share the test files the machine can run (GgParallelism.testFilesPerRun); a run on its own keeps the whole machine
-gg is parallel by default: heavy tasks get a quarter of the processors (1 to 4), work at a remote fixed limits that do not grow with the machine — network 8, pushes 4, pullRequests 2, publishes 4; GG_PARALLEL lowers them, GG_PARALLEL=1 runs everything one after the other
-Tests of runs that share the machine get as many times their usual time as there are runs (GgParallelism.testTimeoutFactor)
-TaskSlots.heavy: the slots for the heavy part of tasks. A test run in one of them shares the machine with the runs that hold a slot or wait for one; a run outside of them is left to the test runner
-GgParallelism.pullRequests is 10: how many pull requests start within a minute and an hour is counted where they are created
-RepoLock: a second gg run in a repository waits for the first and takes over its result; the lock is a file in .git with an expiry date, renewed every 10 s and free again after 30 s without a renewal; CommandCluster runs its commands inside of it
+Add the blog post of the change
+README: running tasks in parallel, one gg run per repository
+Tighten the dependencies
 
 ## 2.17.0 - 2026-11-12
 

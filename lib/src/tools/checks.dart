@@ -15,6 +15,7 @@ import 'package:gg_one_core/src/commands/check/npm_logged_in.dart';
 import 'package:gg_one_core/src/commands/check/package_json_scripts.dart';
 import 'package:gg_one_core/src/commands/check/pana.dart';
 import 'package:gg_one_core/src/commands/check/pub_get_offline.dart';
+import 'package:gg_one_core/src/tools/parallel.dart';
 import 'package:gg_publish/gg_publish.dart';
 import 'package:gg_test/gg_test.dart';
 import 'package:gg_version/gg_version.dart';
@@ -44,7 +45,16 @@ class Checks {
        analyze = analyze ?? Analyze(ggLog: ggLog),
        build = build ?? Build(ggLog: ggLog),
        format = format ?? Format(ggLog: ggLog),
-       tests = tests ?? Tests(ggLog: ggLog),
+       tests =
+           tests ??
+           Tests(
+             ggLog: ggLog,
+             // Test runs side by side share the machine between them —
+             // and get the time that takes. A run on its own is left to
+             // the test runner.
+             concurrency: () => GgParallelism.testFilesPerRun,
+             timeoutFactor: () => GgParallelism.testTimeoutFactor,
+           ),
        packageJsonScripts =
            packageJsonScripts ?? CheckPackageJsonScripts(ggLog: ggLog),
        pana = pana ?? Pana(ggLog: ggLog),

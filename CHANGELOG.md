@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.18.0 - 2026-11-14
+
+### Added
+
+- Add runInParallel: tasks at once, logged in order
+- Add the blog post and describe parallel runs
+
 ## 2.17.0 - 2026-11-12
 
 ### Added

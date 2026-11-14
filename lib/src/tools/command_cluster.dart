@@ -11,6 +11,8 @@ import 'package:gg_log/gg_log.dart';
 import 'package:gg_console_colors/gg_console_colors.dart';
 import 'package:gg_one_core/src/tools/gg_rc.dart';
 import 'package:gg_one_core/src/tools/gg_state.dart';
+import 'package:gg_one_core/src/tools/repo_lock.dart';
+import 'package:gg_process/gg_process.dart';
 import 'package:gg_status_printer/gg_status_printer.dart';
 
 /// A cluster of commands that is run in sequence
@@ -25,7 +27,9 @@ class CommandCluster extends DirCommand<void> {
     required this.shortDescription,
     this.checksSetting,
     GgState? state,
-  }) : _state = state ?? GgState(ggLog: ggLog) {
+    RepoLock? repoLock,
+  }) : _state = state ?? GgState(ggLog: ggLog),
+       _repoLock = repoLock ?? RepoLock() {
     _addArgs();
   }
 
@@ -82,7 +86,11 @@ class CommandCluster extends DirCommand<void> {
           '${GgRc.keyPath(setting)} is false in .gg/${GgRc.repoFileName}.',
         ),
       );
-      await _state.writeSuccess(directory: directory, key: stateKey);
+      await _repoLock.use(
+        directory: directory,
+        ggLog: ggLog,
+        body: (_) => _state.writeSuccess(directory: directory, key: stateKey),
+      );
       return;
     }
 
@@ -92,24 +100,40 @@ class CommandCluster extends DirCommand<void> {
       return;
     }
 
-    // Execute commands.
-    try {
-      for (final command in commands) {
-        await command.exec(
-          directory: directory,
-          ggLog: ggLog,
-          options: options,
-        );
-      }
+    // One gg run at a time works in a repository. The commands write into
+    // it — coverage, generated files, the state — and two runs side by side
+    // spoil each other's results.
+    await _repoLock.use(
+      directory: directory,
+      ggLog: ggLog,
+      body: (waited) async {
+        // The run this one waited for may have checked this very state:
+        // its result is as good as an own one.
+        if (waited && !await _actionIsNeeded(directory, ggLog, force)) {
+          _printAlreadyDoneSuccess(ggLog);
+          return;
+        }
 
-      // Save success
-      saveState ??= argResults?['save-state'] as bool? ?? true;
-      if (saveState) {
-        await _state.writeSuccess(directory: directory, key: stateKey);
-      }
-    } catch (e) {
-      rethrow;
-    }
+        // Execute commands.
+        for (final command in commands) {
+          await command.exec(
+            directory: directory,
+            ggLog: ggLog,
+            options: options,
+          );
+        }
+
+        // Save success. Shielded: the checks passed, and a caller that
+        // cancels its process scope now must not stop the state between the
+        // file and its commit.
+        saveState ??= argResults?['save-state'] as bool? ?? true;
+        if (saveState!) {
+          await GgProcessScope.shield(
+            () => _state.writeSuccess(directory: directory, key: stateKey),
+          );
+        }
+      },
+    );
   }
 
   /// The commands to run
@@ -120,6 +144,9 @@ class CommandCluster extends DirCommand<void> {
   // ######################
 
   final GgState _state;
+
+  /// Makes a second gg run in the same repository wait for the first.
+  final RepoLock _repoLock;
 
   // ...........................................................................
   void _addArgs() {

@@ -4,13 +4,14 @@
 
 ### Added
 
+- Add GgRc.formerBuiltInDefaults: a ~/.gg_rc that still holds what an older
+gg wrote gets the current defaults; an edited file is kept
 - Add a blog post on the transitive default
-
-doc/blog/2026/2026-11-14-leave-do-add-transitive-off-by-default.md
 
 ### Changed
 
 - Leave do.add.transitive off by default
+- Tidy up the unreleased CHANGELOG entries
 
 ## 2.18.0 - 2026-11-14
 

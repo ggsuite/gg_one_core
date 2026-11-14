@@ -27,6 +27,10 @@ preset:
   them, a `~/.gg_rc` holding one is reported as broken
 - `GgRc.load(ggLog:, repo:)` reads `~/.gg_rc` — written with
   `GgRc.builtInDefaults` when missing — and, with `repo`, `.gg/gg_rc` on top
+- `GgRc.builtInDefaults` leaves `do.add.transitive` off. A `~/.gg_rc` that
+  still holds exactly what an older gg wrote (`GgRc.formerBuiltInDefaults`)
+  gets the current defaults written into it; a file anyone edited stays
+  as it is
 - `GgRc.loadRepo(repo, create:)` reads `.gg/gg_rc` only; `create: true`
   writes a missing file with `GgRc.repoDefaults` and adds `!.gg/gg_rc`
   below a `.gg/*` rule of `.gitignore`, so it stays tracked

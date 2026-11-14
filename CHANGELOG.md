@@ -2,13 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Add a blog post on the transitive default
+
+doc/blog/2026/2026-11-14-leave-do-add-transitive-off-by-default.md
+
 ### Changed
 
 - Leave do.add.transitive off by default
-
-GgRc.builtInDefaults: do.add.transitive is false now
-A ~/.gg_rc that still holds what an older gg wrote gets the new defaults (GgRc.formerBuiltInDefaults)
-A user file anyone edited stays as it is
 
 ## 2.18.0 - 2026-11-14
 

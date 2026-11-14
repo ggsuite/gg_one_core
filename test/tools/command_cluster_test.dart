@@ -4,6 +4,7 @@
 // Use of this source code is governed by terms that can be
 // found in the LICENSE file in the root of this package.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:gg_args/gg_args.dart';
@@ -109,6 +110,82 @@ void main() {
         await cluster.exec(directory: d, ggLog: ggLog);
         expect(messages, ['isCommitted', 'isPushed', 'isUpgraded']);
         expect(GgRc.repoFileOf(d).existsSync(), isFalse);
+      });
+    });
+
+    group('when another gg run works in the repository', () {
+      /// A lock that asks often, shared by the cluster and the other run.
+      final lock = RepoLock(pollInterval: const Duration(milliseconds: 5));
+      late CommandCluster cluster;
+
+      setUp(() {
+        cluster = CommandCluster(
+          ggLog: ggLog,
+          commands: commands,
+          name: 'my-check',
+          description: 'A more detailed description.',
+          shortDescription: 'Do all check commands work?',
+          stateKey: 'my-check',
+          repoLock: lock,
+        );
+      });
+
+      /// Runs the cluster while another run holds the lock of the
+      /// repository. With [checksTheSameState] the other run records the
+      /// success the cluster is after before it gives the lock back.
+      Future<void> runNextToAnotherRun({
+        required bool checksTheSameState,
+        bool force = false,
+      }) async {
+        final otherIsDone = Completer<void>();
+        final other = lock.use(
+          directory: d,
+          ggLog: (_) {},
+          body: (_) async {
+            await otherIsDone.future;
+            if (checksTheSameState) {
+              await GgState(ggLog: (_) {})
+                  .writeSuccess(directory: d, key: 'my-check');
+            }
+          },
+        );
+
+        final run = cluster.exec(directory: d, ggLog: ggLog, force: force);
+
+        // The cluster finds the lock taken as soon as it knows that its
+        // state is not recorded — and runs nothing while it waits.
+        while (messages.isEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(messages, [
+          'Another gg run works in ${basename(d.path)}. Waiting for it …',
+        ]);
+
+        otherIsDone.complete();
+        await other;
+        await run;
+      }
+
+      test('waits for it and takes over its result', () async {
+        await runNextToAnotherRun(checksTheSameState: true);
+
+        // What the other run checked is not checked again.
+        expect(messages.skip(1), ['✓ Do all check commands work?']);
+      });
+
+      test('waits for it and runs its commands when the other run checked '
+          'something else', () async {
+        await runNextToAnotherRun(checksTheSameState: false);
+
+        expect(messages.skip(1), ['isCommitted', 'isPushed', 'isUpgraded']);
+      });
+
+      test('waits for it and runs its commands all the same when '
+          'forced', () async {
+        await runNextToAnotherRun(checksTheSameState: true, force: true);
+
+        expect(messages.skip(1), ['isCommitted', 'isPushed', 'isUpgraded']);
       });
     });
 

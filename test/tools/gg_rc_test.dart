@@ -69,7 +69,7 @@ void main() {
         expect(file.readAsStringSync(), endsWith('}\n'));
         expect(rc.file, file);
         expect(rc.values, isEmpty);
-        expect(rc.flag(transitive), isTrue);
+        expect(rc.flag(transitive), isFalse);
         expect(rc.flag(askTicketCleanup), isFalse);
         expect(messages.single, startsWith('✓ Created ${file.path}'));
       });
@@ -80,12 +80,12 @@ void main() {
         final rc = GgRc.load(ggLog: ggLog, file: missingFolder);
 
         expect(missingFolder.existsSync(), isFalse);
-        expect(rc.flag(transitive), isTrue);
+        expect(rc.flag(transitive), isFalse);
         expect(messages.single, startsWith('⚠️ Could not create'));
         expect(messages.single, contains(r'$GG_RC'));
       });
 
-      test('reads an existing file and never rewrites it', () {
+      test('reads an existing file and does not rewrite it', () {
         const content = '{"do": {"add": {"transitive": false}}}';
         file.writeAsStringSync(content);
 
@@ -97,13 +97,82 @@ void main() {
         expect(messages, isEmpty);
       });
 
+      group('a file that still holds the defaults of an older gg', () {
+        String asWritten(Map<String, dynamic> defaults) =>
+            '${const JsonEncoder.withIndent('  ').convert(defaults)}\n';
+
+        for (final (index, former) in GgRc.formerBuiltInDefaults.indexed) {
+          test('gets the current defaults (former defaults #$index)', () {
+            file.writeAsStringSync(asWritten(former));
+
+            final rc = GgRc.load(ggLog: ggLog, file: file);
+
+            expect(rc.values, isEmpty);
+            expect(rc.flag(transitive), isFalse);
+            expect(file.readAsStringSync(), asWritten(GgRc.builtInDefaults));
+            expect(
+              messages.single,
+              startsWith(
+                '✓ Updated ${file.path} to the new defaults of gg '
+                '(do.add.transitive = false): it still held the defaults '
+                'an older gg had written there.',
+              ),
+            );
+          });
+        }
+
+        test('gets them with Windows line endings too', () {
+          file.writeAsStringSync(
+            asWritten(GgRc.formerBuiltInDefaults.last).replaceAll('\n', '\r\n'),
+          );
+
+          GgRc.load(ggLog: ggLog, file: file);
+
+          expect(file.readAsStringSync(), asWritten(GgRc.builtInDefaults));
+        });
+
+        test('is kept when someone edited it', () {
+          final edited = asWritten(GgRc.formerBuiltInDefaults.last)
+              .replaceFirst('{', '{ // mine');
+          file.writeAsStringSync(edited);
+
+          final rc = GgRc.load(ggLog: ggLog, file: file);
+
+          expect(rc.flag(transitive), isTrue);
+          expect(file.readAsStringSync(), edited);
+          expect(messages, isEmpty);
+        });
+
+        test('takes the current defaults when it cannot be written', () {
+          file.writeAsStringSync(asWritten(GgRc.formerBuiltInDefaults.last));
+
+          final rc = GgRc.load(ggLog: ggLog, file: _ReadOnlyFile(file));
+
+          expect(rc.flag(transitive), isFalse);
+          expect(
+            file.readAsStringSync(),
+            asWritten(GgRc.formerBuiltInDefaults.last),
+          );
+          expect(
+            messages.single,
+            allOf(
+              startsWith(
+                '⚠️ Could not update ${file.path} to the new defaults of gg '
+                '(do.add.transitive = false): read-only.',
+              ),
+              contains('gg uses them all the same'),
+            ),
+          );
+        });
+      });
+
       test('takes the default for what the file leaves out', () {
         file.writeAsStringSync('{"do": {}}');
 
         final rc = GgRc.load(ggLog: ggLog, file: file);
 
         expect(rc.isSet(transitive), isFalse);
-        expect(rc.flag(transitive), isTrue);
+        expect(rc.flag(transitive), isFalse);
       });
 
       test('fails every setting of invalid JSON, saying how to repair '
@@ -158,7 +227,7 @@ void main() {
 
         expect(rc.file, isNull);
         expect(rc.values, isEmpty);
-        expect(rc.flag(transitive), isTrue);
+        expect(rc.flag(transitive), isFalse);
         expect(messages, isEmpty);
       });
     });
@@ -218,7 +287,7 @@ void main() {
       test('ignores a path that runs through a value', () {
         const rc = GgRc(values: {'do': true});
         expect(rc.isSet(transitive), isFalse);
-        expect(rc.flag(transitive), isTrue);
+        expect(rc.flag(transitive), isFalse);
       });
     });
 
@@ -403,4 +472,36 @@ void main() {
       expect(GgRc.keyPath(transitive), 'do.add.transitive');
     });
   });
+}
+
+/// A file that can be read but not written.
+class _ReadOnlyFile implements File {
+  _ReadOnlyFile(this._file);
+
+  final File _file;
+
+  @override
+  String get path => _file.path;
+
+  @override
+  bool existsSync() => _file.existsSync();
+
+  @override
+  String readAsStringSync({Encoding encoding = utf8}) =>
+      _file.readAsStringSync(encoding: encoding);
+
+  @override
+  void writeAsStringSync(
+    String contents, {
+    FileMode mode = FileMode.write,
+    Encoding encoding = utf8,
+    bool flush = false,
+  }) => throw FileSystemException(
+    'Cannot write',
+    path,
+    const OSError('read-only'),
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -20,8 +20,8 @@ typedef ReadSettings = GgRc Function({required GgLog ggLog});
 /// `.gg/gg_rc`, one JSON object each, with the same structure.
 ///
 /// The keys follow the command path and end with the name of the flag they
-/// preset — `{"do": {"add": {"transitive": false}}}` makes `gg do add` behave
-/// as if `--no-transitive` was given. A flag given on the command line always
+/// preset — `{"do": {"add": {"transitive": true}}}` makes `gg do add` behave
+/// as if `--transitive` was given. A flag given on the command line always
 /// wins; the files only replace the built-in default.
 ///
 /// Precedence: command line > repository file > user file > built-in
@@ -30,9 +30,13 @@ typedef ReadSettings = GgRc Function({required GgLog ggLog});
 ///
 /// [load] writes the user file with [builtInDefaults] spelled out when it is
 /// missing, [loadRepo] the repository file with [repoDefaults] when asked to.
-/// An existing file is never rewritten — not even to add a setting a newer gg
-/// knows: what it leaves out takes its built-in default. Both files may
-/// contain `//` and `/* */` comments.
+/// An existing file is not rewritten — not even to add a setting a newer gg
+/// knows: what it leaves out takes its built-in default. The one exception
+/// is a user file that still holds, character for character, what an older
+/// gg wrote ([formerBuiltInDefaults]): nobody edited it, so it holds no
+/// choice of the user, only defaults that changed since. [load] writes the
+/// current [builtInDefaults] into it. Both files may contain `//` and
+/// `/* */` comments.
 class GgRc {
   /// Settings read from the user [file] and the repository [repoFile]; what
   /// they leave out takes its default.
@@ -80,10 +84,31 @@ class GgRc {
   /// Every setting of the user file, with its built-in default.
   static const Map<String, dynamic> builtInDefaults = <String, dynamic>{
     'do': <String, dynamic>{
-      'add': <String, dynamic>{'transitive': true},
+      'add': <String, dynamic>{'transitive': false},
       'publish': <String, dynamic>{'askTicketCleanup': false},
     },
   };
+
+  /// What older versions of gg wrote into a missing user file, oldest first.
+  ///
+  /// A user file that still holds exactly one of them — as gg wrote it, see
+  /// [load] — gets the current [builtInDefaults]. Add the old
+  /// [builtInDefaults] here whenever one of their values changes; otherwise
+  /// every user who ran gg before keeps the old value.
+  static const List<Map<String, dynamic>> formerBuiltInDefaults =
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'do': <String, dynamic>{
+            'add': <String, dynamic>{'transitive': true},
+          },
+        },
+        <String, dynamic>{
+          'do': <String, dynamic>{
+            'add': <String, dynamic>{'transitive': true},
+            'publish': <String, dynamic>{'askTicketCleanup': false},
+          },
+        },
+      ];
 
   /// The settings only a repository file may hold, with their defaults.
   static const Map<String, dynamic> repoDefaults = <String, dynamic>{
@@ -137,8 +162,10 @@ class GgRc {
 
   // ...........................................................................
   /// Reads the user [file] — by default [defaultFile] of [environment] — and
-  /// writes it with [builtInDefaults] first when it does not exist yet. With
-  /// [repo], the repository file is read on top; it takes precedence.
+  /// writes it with [builtInDefaults] first when it does not exist yet, or
+  /// when it still holds one of the [formerBuiltInDefaults] exactly as gg
+  /// wrote them. With [repo], the repository file is read on top; it takes
+  /// precedence.
   ///
   /// A user file that cannot be written does not fail the command that
   /// asked: its settings are the defaults then. A file that cannot be read,
@@ -262,7 +289,7 @@ class GgRc {
         ggLog(
           cDetail(
             '✓ Created ${file.path} — gg reads its defaults from there, '
-            'e.g. {"do": {"add": {"transitive": false}}}.',
+            'e.g. {"do": {"add": {"transitive": true}}}.',
           ),
         );
       } on FileSystemException catch (e) {
@@ -274,6 +301,11 @@ class GgRc {
           ),
         );
       }
+      return GgRc(values: const <String, dynamic>{}, file: file);
+    }
+
+    if (_formerDefaultsIn(file) case final Map<String, dynamic> former) {
+      _renewDefaults(file: file, former: former, ggLog: ggLog);
       return GgRc(values: const <String, dynamic>{}, file: file);
     }
 
@@ -296,6 +328,78 @@ class GgRc {
   }
 
   // ...........................................................................
+  /// The entry of [formerBuiltInDefaults] the user [file] holds exactly as
+  /// gg wrote it, or null — also for a file someone edited, be it only a
+  /// space or a comment.
+  static Map<String, dynamic>? _formerDefaultsIn(File file) {
+    final text = file.readAsStringSync().replaceAll('\r\n', '\n');
+    for (final former in formerBuiltInDefaults) {
+      if (text == _pretty(former)) {
+        return former;
+      }
+    }
+    return null;
+  }
+
+  // ...........................................................................
+  /// Writes [builtInDefaults] into the user [file], which holds the [former]
+  /// defaults of an older gg, and names the settings whose value changed.
+  /// Not being able to write it changes nothing for the run: the file holds
+  /// no choice of the user, so the current defaults apply all the same.
+  static void _renewDefaults({
+    required File file,
+    required Map<String, dynamic> former,
+    required GgLog ggLog,
+  }) {
+    final changed = _leaves(builtInDefaults)
+        .where((keys) {
+          final old = _lookup(former, keys);
+          return old != null && old != _lookup(builtInDefaults, keys);
+        })
+        .map((keys) {
+          final value = jsonEncode(_lookup(builtInDefaults, keys));
+          return '${keyPath(keys)} = $value';
+        })
+        .join(', ');
+    try {
+      file.writeAsStringSync(_pretty(builtInDefaults));
+      ggLog(
+        cDetail(
+          '✓ Updated ${file.path} to the new defaults of gg ($changed): it '
+          'still held the defaults an older gg had written there. Set a '
+          'value in it to keep the old behavior.',
+        ),
+      );
+    } on FileSystemException catch (e) {
+      ggLog(
+        cWarn(
+          '⚠️ Could not update ${file.path} to the new defaults of gg '
+          '($changed): ${e.osError?.message ?? e}. gg uses them all the '
+          'same — the file holds only the defaults an older gg had written '
+          'there.',
+        ),
+      );
+    }
+  }
+
+  // ...........................................................................
+  /// The keys of every value of [map] that is no object, depth first.
+  static Iterable<List<String>> _leaves(
+    Map<String, dynamic> map, [
+    List<String> prefix = const <String>[],
+  ]) sync* {
+    for (final entry in map.entries) {
+      final keys = [...prefix, entry.key];
+      final child = entry.value;
+      if (child is Map<String, dynamic>) {
+        yield* _leaves(child, keys);
+      } else {
+        yield keys;
+      }
+    }
+  }
+
+  // ...........................................................................
   /// The JSON object in [file], or the message why it holds none.
   static Object _decode(File file) {
     const repair =
@@ -308,7 +412,7 @@ class GgRc {
     }
     if (decoded is! Map<String, dynamic>) {
       return '${file.path} must hold one JSON object, '
-          'e.g. {"do": {"add": {"transitive": false}}}. $repair';
+          'e.g. {"do": {"add": {"transitive": true}}}. $repair';
     }
     return decoded;
   }
@@ -316,21 +420,12 @@ class GgRc {
   // ...........................................................................
   /// The first setting of [repoDefaults] that [values] holds, or null.
   static List<String>? _firstRepoSetting(Map<String, dynamic> values) {
-    List<String>? visit(Map<String, dynamic> defaults, List<String> prefix) {
-      for (final entry in defaults.entries) {
-        final keys = [...prefix, entry.key];
-        final child = entry.value;
-        if (child is Map<String, dynamic>) {
-          final found = visit(child, keys);
-          if (found != null) return found;
-        } else if (_lookup(values, keys) != null) {
-          return keys;
-        }
+    for (final keys in _leaves(repoDefaults)) {
+      if (_lookup(values, keys) != null) {
+        return keys;
       }
-      return null;
     }
-
-    return visit(repoDefaults, const <String>[]);
+    return null;
   }
 
   // ...........................................................................

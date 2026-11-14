@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.19.0 - 2026-11-14
+
+### Added
+
+- Add GgRc.formerBuiltInDefaults: an untouched ~/.gg_rc of an older gg gets the current defaults
+- Add a blog post on the transitive default
+
+### Changed
+
+- Leave do.add.transitive off by default
+
 ## 2.18.0 - 2026-11-14
 
 ### Added

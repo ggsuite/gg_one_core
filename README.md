@@ -23,8 +23,12 @@ preset:
 - Precedence: a flag on the command line, then `.gg/gg_rc`, then
   `~/.gg_rc`, then the built-in default
 - `do.upgrade.deps.majorVersions` and `can.commit.checks` belong to one
-  repository (`GgRc.repoDefaults`, both `true`): only `.gg/gg_rc` may set
-  them, a `~/.gg_rc` holding one is reported as broken
+  repository (`GgRc.repoDefaults`): only `.gg/gg_rc` may set them, a
+  `~/.gg_rc` holding one is reported as broken
+- `do.upgrade.deps.majorVersions` is `false` by default: an upgrade crosses
+  major versions only when the repository's file or the caller asks for it.
+  A `.gg/gg_rc` written by an older gg spells out `true` and keeps it
+- `can.commit.checks` is `true` by default
 - `GgRc.load(ggLog:, repo:)` reads `~/.gg_rc` — written with
   `GgRc.builtInDefaults` when missing — and, with `repo`, `.gg/gg_rc` on top
 - `GgRc.builtInDefaults` leaves `do.add.transitive` off. A `~/.gg_rc` that

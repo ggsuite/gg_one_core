@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Default do.upgrade.deps.majorVersions to false
+
+An upgrade crosses major versions only when asked for
+
 ## 2.19.0 - 2026-11-14
 
 ### Added

@@ -317,7 +317,7 @@ void main() {
         expect(repoFile.existsSync(), isFalse);
         expect(rc.repoFile!.path, repoFile.path);
         expect(rc.file, isNull);
-        expect(rc.flag(majors), isTrue);
+        expect(rc.flag(majors), isFalse);
         expect(rc.flag(checks), isTrue);
       });
 
@@ -363,10 +363,10 @@ void main() {
       test('allows comments and trailing commas', () {
         writeRepo(
           '{ // repository settings\n'
-          '  "do": {"upgrade": {"deps": {"majorVersions": false,}}},\n'
+          '  "do": {"upgrade": {"deps": {"majorVersions": true,}}},\n'
           '}',
         );
-        expect(GgRc.loadRepo(repo).flag(majors), isFalse);
+        expect(GgRc.loadRepo(repo).flag(majors), isTrue);
       });
 
       test('loadRepo fails every setting of a broken file', () {
@@ -397,7 +397,7 @@ void main() {
         expect(rc.repoFile!.path, repoFile.path);
         expect(rc.flag(transitive), isTrue);
         expect(rc.flag(askTicketCleanup), isTrue);
-        expect(rc.flag(majors), isTrue);
+        expect(rc.flag(majors), isFalse);
       });
 
       test('load with repo reports a broken repository file', () {
@@ -438,12 +438,12 @@ void main() {
           values: {
             'do': {
               'upgrade': {
-                'deps': {'majorVersions': false},
+                'deps': {'majorVersions': true},
               },
             },
           },
         );
-        expect(rc.flag(majors), isTrue);
+        expect(rc.flag(majors), isFalse);
         expect(rc.isSet(majors), isFalse);
       });
 

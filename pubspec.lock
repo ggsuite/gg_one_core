@@ -146,12 +146,11 @@ packages:
     source: hosted
     version: "0.4.0"
   dna_gg:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: dna_gg
-      sha256: fe0e9f273b7fb3ff126f0ed0b285a2a24dd57756ec9d7d175761785aba283dae
-      url: "https://pub.dev"
-    source: hosted
+      path: "../dna_gg"
+      relative: true
+    source: path
     version: "1.6.0"
   dna_ggsuite:
     dependency: "direct dev"

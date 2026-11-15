@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.20.0 - 2026-11-15
+
+### Added
+
+- Add the blog post about the majorVersions default
+
+### Changed
+
+- Default do.upgrade.deps.majorVersions to false
+
 ## 2.19.0 - 2026-11-14
 
 ### Added

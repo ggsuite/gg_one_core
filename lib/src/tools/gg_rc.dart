@@ -114,7 +114,7 @@ class GgRc {
   static const Map<String, dynamic> repoDefaults = <String, dynamic>{
     'do': <String, dynamic>{
       'upgrade': <String, dynamic>{
-        'deps': <String, dynamic>{'majorVersions': true},
+        'deps': <String, dynamic>{'majorVersions': false},
       },
     },
     'can': <String, dynamic>{

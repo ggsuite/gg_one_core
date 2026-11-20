@@ -5,6 +5,7 @@
 ### Changed
 
 - Upgrade the SDK, the dependencies and the DNA
+- Stay within major versions on dependency upgrades
 
 ## 2.20.0 - 2026-11-15
 
